@@ -8,6 +8,7 @@ import argparse
 import numpy as np
 #import quaternion
 from pyquaternion import Quaternion
+import math
 
 openPoseDirectory = 'C:\\Toolkits\\OpenPose'
 openPoseBuildDirectory = openPoseDirectory + '\\build'
@@ -101,31 +102,6 @@ def getT(Rt):
 def getC(Rt):
     return -np.dot(Rt[:3,:3],Rt[:,3])
 
-
-#def GetCameraExtrinsics (directory, numCameras):
-#    cameraExtrinsics = [np.zeros((3,4)) for i in range(numCameras)]
-#    currentMatrix = 0
-#    currentRow = 0
-#    with open(directory) as f:
-#        for line in f:
-#            tokens = line.split()
-#            if tokens[0][0] == '#':
-#                continue
-            
-#            q = Quaternion(1,0,0,0)
-#            for i in range(4):
-#                q[i] = float(tokens[i+1])
-#            t = np.zeros(3)
-#            for i in range(3):
-#                t[i] = float(tokens[i+5])
-                
-#            cameraExtrinsics[currentMatrix][:,3] = t
-#            cameraExtrinsics[currentMatrix][:3,:3] = q.rotation_matrix
-            
-#            currentMatrix += 1
-
-#    return cameraExtrinsics
-
 def GetCameraExtrinsics (directory, numCameras):
     cameraExtrinsics = [np.zeros((3,4)) for i in range(numCameras)]
     currentMatrix = 0
@@ -166,13 +142,13 @@ def loadImages(images2Load):
     return imgs
 
 
-def DrawLineOnImage(img, l):
+def DrawLineOnImage(img, l, lineColor = (0,255,0), lineWidth = 4):
     d0 = 0; #left of image
     d1 = img.shape[1]-1; #right of image
     y0 = int(-(l[0]*d0+l[2])/l[1]);
     y1 = int(-(l[0]*d1+l[2])/l[1]);
     _, pt1, pt2 = cv2.clipLine((0, 0, img.shape[1], img.shape[0]),(d0,y0),(d1,y1))
-    cv2.line(img,pt1,pt2,(0,255,0),4)
+    cv2.line(img, pt1, pt2, lineColor, lineWidth)
     return
 
 def DrawPointsWithConfidence (img, opTensor):
@@ -190,6 +166,26 @@ def DrawPointsWithConfidence (img, opTensor):
 
             cv2.circle(img, (opTensor[p,i,0],opTensor[p,i,1]),3,color,2)
     return
+
+
+def DistanceFromLine (line, point):
+    homogPoint = np.array([point[0], point[1], 1])
+    proj = np.dot(line, homogPoint)
+    lineNormal = np.linalg.norm(np.array([line[0],line[1]]))
+    return proj / lineNormal
+
+def DistanceBetweenTwoPoints (ptA, ptB) :
+    displacement = ptB - ptA
+    return math.sqrt(displacement[0]**2 + displacement[1]**2)
+
+
+# fix person 1.
+# pick a random image
+def TwoPersonRANSAC(datums, intrinsics, extrinsics, cameraLocations):
+    return
+
+
+
 
 if __name__ == '__main__':
     #try:
