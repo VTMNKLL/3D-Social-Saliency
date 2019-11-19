@@ -143,6 +143,8 @@ def loadImages(images2Load):
 
 
 def DrawLineOnImage(img, l, lineColor = (0,255,0), lineWidth = 4):
+    if (np.linalg.norm(l) < .00001):
+        return
     d0 = 0; #left of image
     d1 = img.shape[1]-1; #right of image
     y0 = int(-(l[0]*d0+l[2])/l[1]);
@@ -375,118 +377,118 @@ if __name__ == '__main__':
         XAvgWorld2 = (worldCoordinate[:3] + X1world + X2world) * (1/3)
 
 
-        pixelGuess = np.dot(projectiveMatrixC, worldCoordinate)
-        pixelGuess = pixelGuess / pixelGuess[2]
-        pixGuessX1 = np.dot(projectiveMatrixC, np.hstack((X1world,1)))
-        pixGuessX1 = pixGuessX1 / pixGuessX1[2]
-        pixGuessX2 = np.dot(projectiveMatrixC, np.hstack((X2world,1)))
-        pixGuessX2 = pixGuessX2 / pixGuessX2[2]
-        pixGuessXA = np.dot(projectiveMatrixC, np.hstack((XAvgWorld,1)))
-        pixGuessXA = pixGuessXA / pixGuessXA[2]
-        pixGuessXA2 = np.dot(projectiveMatrixC, np.hstack((XAvgWorld2,1)))
-        pixGuessXA2 = pixGuessXA2 / pixGuessXA2[2]
-        color = (0,0,255)
-        cv2.circle(imagesToProcess[imgIDC], (int(pixelGuess[0]),int(pixelGuess[1])),3,color,2)
-        color = (0,255,255)
-        cv2.circle(imagesToProcess[imgIDC], (int(pixGuessX1[0]),int(pixGuessX1[1])),3,color,2)
-        color = (255,255,255)
-        cv2.circle(imagesToProcess[imgIDC], (int(pixGuessX2[0]),int(pixGuessX2[1])),3,color,2)
-        color = (255,0,255)
-        cv2.circle(imagesToProcess[imgIDC], (int(pixGuessXA[0]),int(pixGuessXA[1])),3,color,2)
-        color = (0,255,0)
-        cv2.circle(imagesToProcess[imgIDC], (int(pixGuessXA2[0]),int(pixGuessXA2[1])),3,color,2)
-        #color = (255,255,0)
-        #cv2.circle(imagesToProcess[imgIDC], (int(pixelC[0]),int(pixelC[1])),3,color,2)
+        ##pixelGuess = np.dot(projectiveMatrixC, worldCoordinate)
+        ##pixelGuess = pixelGuess / pixelGuess[2]
+        ##pixGuessX1 = np.dot(projectiveMatrixC, np.hstack((X1world,1)))
+        ##pixGuessX1 = pixGuessX1 / pixGuessX1[2]
+        ##pixGuessX2 = np.dot(projectiveMatrixC, np.hstack((X2world,1)))
+        ##pixGuessX2 = pixGuessX2 / pixGuessX2[2]
+        ##pixGuessXA = np.dot(projectiveMatrixC, np.hstack((XAvgWorld,1)))
+        ##pixGuessXA = pixGuessXA / pixGuessXA[2]
+        ##pixGuessXA2 = np.dot(projectiveMatrixC, np.hstack((XAvgWorld2,1)))
+        ##pixGuessXA2 = pixGuessXA2 / pixGuessXA2[2]
+        ##color = (0,0,255)
+        ##cv2.circle(imagesToProcess[imgIDC], (int(pixelGuess[0]),int(pixelGuess[1])),3,color,2)
+        ##color = (0,255,255)
+        ##cv2.circle(imagesToProcess[imgIDC], (int(pixGuessX1[0]),int(pixGuessX1[1])),3,color,2)
+        ##color = (255,255,255)
+        ##cv2.circle(imagesToProcess[imgIDC], (int(pixGuessX2[0]),int(pixGuessX2[1])),3,color,2)
+        ##color = (255,0,255)
+        ##cv2.circle(imagesToProcess[imgIDC], (int(pixGuessXA[0]),int(pixGuessXA[1])),3,color,2)
+        ##color = (0,255,0)
+        ##cv2.circle(imagesToProcess[imgIDC], (int(pixGuessXA2[0]),int(pixGuessXA2[1])),3,color,2)
+        ###color = (255,255,0)
+        ###cv2.circle(imagesToProcess[imgIDC], (int(pixelC[0]),int(pixelC[1])),3,color,2)
 
 
-        pixelGuess = np.dot(projectiveMatrixA, worldCoordinate)
-        pixelGuess = pixelGuess / pixelGuess[2]
-        pixGuessX1 = np.dot(projectiveMatrixA, np.hstack((X1world,1)))
-        pixGuessX1 = pixGuessX1 / pixGuessX1[2]
-        pixGuessX2 = np.dot(projectiveMatrixA, np.hstack((X2world,1)))
-        pixGuessX2 = pixGuessX2 / pixGuessX2[2]
-        pixGuessXA = np.dot(projectiveMatrixA, np.hstack((XAvgWorld,1)))
-        pixGuessXA = pixGuessXA / pixGuessXA[2]
-        pixGuessXA2 = np.dot(projectiveMatrixA, np.hstack((XAvgWorld2,1)))
-        pixGuessXA2 = pixGuessXA2 / pixGuessXA2[2]
-        color = (0,0,255)
-        cv2.circle(imagesToProcess[imgIDA], (int(pixelGuess[0]),int(pixelGuess[1])),3,color,2)
-        color = (0,255,255)
-        cv2.circle(imagesToProcess[imgIDA], (int(pixGuessX1[0]),int(pixGuessX1[1])),3,color,2)
-        color = (255,255,255)
-        cv2.circle(imagesToProcess[imgIDA], (int(pixGuessX2[0]),int(pixGuessX2[1])),3,color,2)
-        color = (255,0,255)
-        cv2.circle(imagesToProcess[imgIDA], (int(pixGuessXA[0]),int(pixGuessXA[1])),3,color,2)
-        color = (0,255,0)
-        cv2.circle(imagesToProcess[imgIDA], (int(pixGuessXA2[0]),int(pixGuessXA2[1])),3,color,2)
-        #color = (255,255,0)
-        #cv2.circle(imagesToProcess[imgIDA], (int(pixelA[0]),int(pixelA[1])),3,color,2)
+        ##pixelGuess = np.dot(projectiveMatrixA, worldCoordinate)
+        ##pixelGuess = pixelGuess / pixelGuess[2]
+        ##pixGuessX1 = np.dot(projectiveMatrixA, np.hstack((X1world,1)))
+        ##pixGuessX1 = pixGuessX1 / pixGuessX1[2]
+        ##pixGuessX2 = np.dot(projectiveMatrixA, np.hstack((X2world,1)))
+        ##pixGuessX2 = pixGuessX2 / pixGuessX2[2]
+        ##pixGuessXA = np.dot(projectiveMatrixA, np.hstack((XAvgWorld,1)))
+        ##pixGuessXA = pixGuessXA / pixGuessXA[2]
+        ##pixGuessXA2 = np.dot(projectiveMatrixA, np.hstack((XAvgWorld2,1)))
+        ##pixGuessXA2 = pixGuessXA2 / pixGuessXA2[2]
+        ##color = (0,0,255)
+        ##cv2.circle(imagesToProcess[imgIDA], (int(pixelGuess[0]),int(pixelGuess[1])),3,color,2)
+        ##color = (0,255,255)
+        ##cv2.circle(imagesToProcess[imgIDA], (int(pixGuessX1[0]),int(pixGuessX1[1])),3,color,2)
+        ##color = (255,255,255)
+        ##cv2.circle(imagesToProcess[imgIDA], (int(pixGuessX2[0]),int(pixGuessX2[1])),3,color,2)
+        ##color = (255,0,255)
+        ##cv2.circle(imagesToProcess[imgIDA], (int(pixGuessXA[0]),int(pixGuessXA[1])),3,color,2)
+        ##color = (0,255,0)
+        ##cv2.circle(imagesToProcess[imgIDA], (int(pixGuessXA2[0]),int(pixGuessXA2[1])),3,color,2)
+        ###color = (255,255,0)
+        ###cv2.circle(imagesToProcess[imgIDA], (int(pixelA[0]),int(pixelA[1])),3,color,2)
 
-        pixelGuess = np.dot(projectiveMatrixB, worldCoordinate)
-        pixelGuess = pixelGuess / pixelGuess[2]
-        pixGuessX1 = np.dot(projectiveMatrixB, np.hstack((X1world,1)))
-        pixGuessX1 = pixGuessX1 / pixGuessX1[2]
-        pixGuessX2 = np.dot(projectiveMatrixB, np.hstack((X2world,1)))
-        pixGuessX2 = pixGuessX2 / pixGuessX2[2]
-        pixGuessXA = np.dot(projectiveMatrixB, np.hstack((XAvgWorld,1)))
-        pixGuessXA = pixGuessXA / pixGuessXA[2]
-        pixGuessXA2 = np.dot(projectiveMatrixB, np.hstack((XAvgWorld2,1)))
-        pixGuessXA2 = pixGuessXA2 / pixGuessXA2[2]
-        color = (0,0,255)
-        cv2.circle(imagesToProcess[imgIDB], (int(pixelGuess[0]),int(pixelGuess[1])),3,color,2)
-        color = (0,255,255)
-        cv2.circle(imagesToProcess[imgIDB], (int(pixGuessX1[0]),int(pixGuessX1[1])),3,color,2)
-        color = (255,255,255)
-        cv2.circle(imagesToProcess[imgIDB], (int(pixGuessX2[0]),int(pixGuessX2[1])),3,color,2)
-        color = (255,0,255)
-        cv2.circle(imagesToProcess[imgIDB], (int(pixGuessXA[0]),int(pixGuessXA[1])),3,color,2)
-        color = (0,255,0)
-        cv2.circle(imagesToProcess[imgIDB], (int(pixGuessXA2[0]),int(pixGuessXA2[1])),3,color,2)
-        #color = (255,255,0)
-        #cv2.circle(imagesToProcess[imgIDB], (int(pixelB[0]),int(pixelB[1])),3,color,2)
+        ##pixelGuess = np.dot(projectiveMatrixB, worldCoordinate)
+        ##pixelGuess = pixelGuess / pixelGuess[2]
+        ##pixGuessX1 = np.dot(projectiveMatrixB, np.hstack((X1world,1)))
+        ##pixGuessX1 = pixGuessX1 / pixGuessX1[2]
+        ##pixGuessX2 = np.dot(projectiveMatrixB, np.hstack((X2world,1)))
+        ##pixGuessX2 = pixGuessX2 / pixGuessX2[2]
+        ##pixGuessXA = np.dot(projectiveMatrixB, np.hstack((XAvgWorld,1)))
+        ##pixGuessXA = pixGuessXA / pixGuessXA[2]
+        ##pixGuessXA2 = np.dot(projectiveMatrixB, np.hstack((XAvgWorld2,1)))
+        ##pixGuessXA2 = pixGuessXA2 / pixGuessXA2[2]
+        ##color = (0,0,255)
+        ##cv2.circle(imagesToProcess[imgIDB], (int(pixelGuess[0]),int(pixelGuess[1])),3,color,2)
+        ##color = (0,255,255)
+        ##cv2.circle(imagesToProcess[imgIDB], (int(pixGuessX1[0]),int(pixGuessX1[1])),3,color,2)
+        ##color = (255,255,255)
+        ##cv2.circle(imagesToProcess[imgIDB], (int(pixGuessX2[0]),int(pixGuessX2[1])),3,color,2)
+        ##color = (255,0,255)
+        ##cv2.circle(imagesToProcess[imgIDB], (int(pixGuessXA[0]),int(pixGuessXA[1])),3,color,2)
+        ##color = (0,255,0)
+        ##cv2.circle(imagesToProcess[imgIDB], (int(pixGuessXA2[0]),int(pixGuessXA2[1])),3,color,2)
+        ###color = (255,255,0)
+        ###cv2.circle(imagesToProcess[imgIDB], (int(pixelB[0]),int(pixelB[1])),3,color,2)
 
-        pixelGuess = np.dot(projectiveMatrixD, worldCoordinate)
-        pixelGuess = pixelGuess / pixelGuess[2]
-        pixGuessX1 = np.dot(projectiveMatrixD, np.hstack((X1world,1)))
-        pixGuessX1 = pixGuessX1 / pixGuessX1[2]
-        pixGuessX2 = np.dot(projectiveMatrixD, np.hstack((X2world,1)))
-        pixGuessX2 = pixGuessX2 / pixGuessX2[2]
-        pixGuessXA = np.dot(projectiveMatrixD, np.hstack((XAvgWorld,1)))
-        pixGuessXA = pixGuessXA / pixGuessXA[2]
-        pixGuessXA2 = np.dot(projectiveMatrixD, np.hstack((XAvgWorld2,1)))
-        pixGuessXA2 = pixGuessXA2 / pixGuessXA2[2]
-        color = (0,0,255)
-        cv2.circle(imagesToProcess[imgIDD], (int(pixelGuess[0]),int(pixelGuess[1])),3,color,2)
-        color = (0,255,255)
-        cv2.circle(imagesToProcess[imgIDD], (int(pixGuessX1[0]),int(pixGuessX1[1])),3,color,2)
-        color = (255,255,255)
-        cv2.circle(imagesToProcess[imgIDD], (int(pixGuessX2[0]),int(pixGuessX2[1])),3,color,2)
-        color = (255,0,255)
-        cv2.circle(imagesToProcess[imgIDD], (int(pixGuessXA[0]),int(pixGuessXA[1])),3,color,2)
-        color = (0,255,0)
-        cv2.circle(imagesToProcess[imgIDD], (int(pixGuessXA2[0]),int(pixGuessXA2[1])),3,color,2)
+        ##pixelGuess = np.dot(projectiveMatrixD, worldCoordinate)
+        ##pixelGuess = pixelGuess / pixelGuess[2]
+        ##pixGuessX1 = np.dot(projectiveMatrixD, np.hstack((X1world,1)))
+        ##pixGuessX1 = pixGuessX1 / pixGuessX1[2]
+        ##pixGuessX2 = np.dot(projectiveMatrixD, np.hstack((X2world,1)))
+        ##pixGuessX2 = pixGuessX2 / pixGuessX2[2]
+        ##pixGuessXA = np.dot(projectiveMatrixD, np.hstack((XAvgWorld,1)))
+        ##pixGuessXA = pixGuessXA / pixGuessXA[2]
+        ##pixGuessXA2 = np.dot(projectiveMatrixD, np.hstack((XAvgWorld2,1)))
+        ##pixGuessXA2 = pixGuessXA2 / pixGuessXA2[2]
+        ##color = (0,0,255)
+        ##cv2.circle(imagesToProcess[imgIDD], (int(pixelGuess[0]),int(pixelGuess[1])),3,color,2)
+        ##color = (0,255,255)
+        ##cv2.circle(imagesToProcess[imgIDD], (int(pixGuessX1[0]),int(pixGuessX1[1])),3,color,2)
+        ##color = (255,255,255)
+        ##cv2.circle(imagesToProcess[imgIDD], (int(pixGuessX2[0]),int(pixGuessX2[1])),3,color,2)
+        ##color = (255,0,255)
+        ##cv2.circle(imagesToProcess[imgIDD], (int(pixGuessXA[0]),int(pixGuessXA[1])),3,color,2)
+        ##color = (0,255,0)
+        ##cv2.circle(imagesToProcess[imgIDD], (int(pixGuessXA2[0]),int(pixGuessXA2[1])),3,color,2)
 
 
-        pixelGuess = np.dot(projectiveMatrix0, worldCoordinate)
-        pixelGuess = pixelGuess / pixelGuess[2]
-        pixGuessX1 = np.dot(projectiveMatrix0, np.hstack((X1world,1)))
-        pixGuessX1 = pixGuessX1 / pixGuessX1[2]
-        pixGuessX2 = np.dot(projectiveMatrix0, np.hstack((X2world,1)))
-        pixGuessX2 = pixGuessX2 / pixGuessX2[2]
-        pixGuessXA = np.dot(projectiveMatrix0, np.hstack((XAvgWorld,1)))
-        pixGuessXA = pixGuessXA / pixGuessXA[2]
-        pixGuessXA2 = np.dot(projectiveMatrix0, np.hstack((XAvgWorld2,1)))
-        pixGuessXA2 = pixGuessXA2 / pixGuessXA2[2]
-        color = (0,0,255)
-        cv2.circle(imagesToProcess[0], (int(pixelGuess[0]),int(pixelGuess[1])),3,color,2)
-        color = (0,255,255)
-        cv2.circle(imagesToProcess[0], (int(pixGuessX1[0]),int(pixGuessX1[1])),3,color,2)
-        color = (255,255,255)
-        cv2.circle(imagesToProcess[0], (int(pixGuessX2[0]),int(pixGuessX2[1])),3,color,2)
-        color = (255,0,255)
-        cv2.circle(imagesToProcess[0], (int(pixGuessXA[0]),int(pixGuessXA[1])),3,color,2)
-        color = (0,255,0)
-        cv2.circle(imagesToProcess[0], (int(pixGuessXA2[0]),int(pixGuessXA2[1])),3,color,2)
+        ##pixelGuess = np.dot(projectiveMatrix0, worldCoordinate)
+        ##pixelGuess = pixelGuess / pixelGuess[2]
+        ##pixGuessX1 = np.dot(projectiveMatrix0, np.hstack((X1world,1)))
+        ##pixGuessX1 = pixGuessX1 / pixGuessX1[2]
+        ##pixGuessX2 = np.dot(projectiveMatrix0, np.hstack((X2world,1)))
+        ##pixGuessX2 = pixGuessX2 / pixGuessX2[2]
+        ##pixGuessXA = np.dot(projectiveMatrix0, np.hstack((XAvgWorld,1)))
+        ##pixGuessXA = pixGuessXA / pixGuessXA[2]
+        ##pixGuessXA2 = np.dot(projectiveMatrix0, np.hstack((XAvgWorld2,1)))
+        ##pixGuessXA2 = pixGuessXA2 / pixGuessXA2[2]
+        ##color = (0,0,255)
+        ##cv2.circle(imagesToProcess[0], (int(pixelGuess[0]),int(pixelGuess[1])),3,color,2)
+        ##color = (0,255,255)
+        ##cv2.circle(imagesToProcess[0], (int(pixGuessX1[0]),int(pixGuessX1[1])),3,color,2)
+        ##color = (255,255,255)
+        ##cv2.circle(imagesToProcess[0], (int(pixGuessX2[0]),int(pixGuessX2[1])),3,color,2)
+        ##color = (255,0,255)
+        ##cv2.circle(imagesToProcess[0], (int(pixGuessXA[0]),int(pixGuessXA[1])),3,color,2)
+        ##color = (0,255,0)
+        ##cv2.circle(imagesToProcess[0], (int(pixGuessXA2[0]),int(pixGuessXA2[1])),3,color,2)
 
 
         #for i in range(numberOfCameras):
@@ -516,6 +518,9 @@ if __name__ == '__main__':
         fundMatrix = GetFundamentalMatrix(cameraIntrinsics[imgIDA],cameraExtrinsics[imgIDA][:3,:3],cameraExtrinsics[imgIDA][:3,3], cameraFromWorld[imgIDA], cameraIntrinsics[imgIDB],cameraExtrinsics[imgIDB][:3,:3],cameraExtrinsics[imgIDB][:3,3], cameraFromWorld[imgIDB])
         fundTrans = np.transpose(fundMatrix)
 
+        fundMatrixD = GetFundamentalMatrix(cameraIntrinsics[imgIDA],cameraExtrinsics[imgIDA][:3,:3],cameraExtrinsics[imgIDA][:3,3], cameraFromWorld[imgIDA], cameraIntrinsics[imgIDD],cameraExtrinsics[imgIDD][:3,:3],cameraExtrinsics[imgIDD][:3,3], cameraFromWorld[imgIDD])
+        fundTransD = np.transpose(fundMatrixD)
+
         for point in range(datums[imgIDA].poseKeypoints.shape[1]): #[personA,2,0]:
             bodypartPixel = np.array([datums[imgIDA].poseKeypoints[personA,point,0], datums[imgIDA].poseKeypoints[personA,point,1], 1])
 
@@ -524,18 +529,31 @@ if __name__ == '__main__':
         
 
             #lineInA = np.dot(fundMatrix,pixelB)
-            lineInB = np.dot(fundTrans,bodypartPixel)
+            #lineInB = np.dot(fundTrans,bodypartPixel)
+            #lineInD = np.dot(fundTransD,bodypartPixel)
+
+            for i in range(numberOfCameras):
+                fundMatrixI = GetFundamentalMatrix(cameraIntrinsics[imgIDA],cameraExtrinsics[imgIDA][:3,:3],cameraExtrinsics[imgIDA][:3,3], cameraFromWorld[imgIDA], cameraIntrinsics[i],cameraExtrinsics[i][:3,:3],cameraExtrinsics[i][:3,3], cameraFromWorld[i])
+                fundTransI = np.transpose(fundMatrixI)
+                lineInI = np.dot(fundTransI,bodypartPixel)
+                DrawLineOnImage( imagesToProcess[i], lineInI)
         
             #DrawLineOnImage( imagesToProcess[imgIDA], lineInA)
-            DrawLineOnImage( imagesToProcess[imgIDB], lineInB)
+            #DrawLineOnImage( imagesToProcess[imgIDB], lineInB)
+            #DrawLineOnImage( imagesToProcess[imgIDD], lineInD)
             
             color = (0,255,0)
             cv2.circle(imagesToProcess[imgIDA], (int(bodypartPixel[0]),int(bodypartPixel[1])),3,color,2)
         
-        cv2.imshow('A', imagesToProcess[imgIDA])
-        cv2.imshow('B', imagesToProcess[imgIDB])
-        #cv2.imshow('C', imagesToProcess[imgIDC])
-        #cv2.imshow('D', imagesToProcess[imgIDD])
+        for i in range(numberOfCameras):
+            cv2.namedWindow(str(i), cv2.WINDOW_NORMAL)
+            cv2.imshow(str(i),imagesToProcess[i])
+            cv2.resizeWindow(str(i), imagesToProcess[i].shape[1]//3, imagesToProcess[i].shape[0]//3)
+
+        ##cv2.imshow('A', imagesToProcess[imgIDA])
+        ##cv2.imshow('B', imagesToProcess[imgIDB])
+        ###cv2.imshow('C', imagesToProcess[imgIDC])
+        ##cv2.imshow('D', imagesToProcess[imgIDD])
         #cv2.imshow('0', imagesToProcess[0])
         #cv2.imwrite('A.jpg', imagesToProcess[imgIDA])
         #cv2.imwrite('B.jpg', imagesToProcess[imgIDB])
