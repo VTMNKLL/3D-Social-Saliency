@@ -323,11 +323,11 @@ if __name__ == '__main__':
         personB = 1
         personC = 4
 
-        # ground Truth
-        color = (255,255,0)
-        cv2.circle(imagesToProcess[imgIDA], (datums[imgIDA].poseKeypoints[personA,2,0],datums[imgIDA].poseKeypoints[personA,2,1]),3,color,2)
-        cv2.circle(imagesToProcess[imgIDB], (datums[imgIDB].poseKeypoints[personB,2,0],datums[imgIDB].poseKeypoints[personB,2,1]),3,color,2)
-        cv2.circle(imagesToProcess[imgIDC], (datums[imgIDC].poseKeypoints[personC,2,0],datums[imgIDC].poseKeypoints[personC,2,1]),3,color,2)
+        ## ground Truth
+        #color = (255,255,0)
+        #cv2.circle(imagesToProcess[imgIDA], (datums[imgIDA].poseKeypoints[personA,2,0],datums[imgIDA].poseKeypoints[personA,2,1]),3,color,2)
+        #cv2.circle(imagesToProcess[imgIDB], (datums[imgIDB].poseKeypoints[personB,2,0],datums[imgIDB].poseKeypoints[personB,2,1]),3,color,2)
+        #cv2.circle(imagesToProcess[imgIDC], (datums[imgIDC].poseKeypoints[personC,2,0],datums[imgIDC].poseKeypoints[personC,2,1]),3,color,2)
 
         projectiveMatrix0 = np.dot(cameraIntrinsics[0],cameraExtrinsics[0])
         projectiveMatrixA = np.dot(cameraIntrinsics[imgIDA],cameraExtrinsics[imgIDA])
