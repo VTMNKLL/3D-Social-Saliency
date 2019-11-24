@@ -186,6 +186,50 @@ def DistanceBetweenTwoPoints (ptA, ptB) :
 def TwoPersonRANSAC(datums, intrinsics, extrinsics, cameraLocations):
     return
 
+# Px is the projection matrix, px is the corresponding pixel coordinates of the same 3D point
+# px should be shape 1xNx3 (body part)x(correspondence in each image)x(x,y,confidence)
+def TriangulatePoints(P1, p1, P2, p2):
+
+    correspondences = np.zeros((p1.shape[0]*6,4))
+
+    j = 0
+    
+    for i in range(p1.shape[0]):
+        pixel = (p1[i,0],p1[i,1],1)
+        correspondences[j:j+3,:] = np.dot(skew(pixel),P1)
+        j += 3
+
+
+    for i in range(p2.shape[0]):
+        pixel = (p2[i,0],p2[i,1],1)
+        correspondences[j:j+3,:] = np.dot(skew(pixel),P2)
+        j += 3
+
+    u, s, vh = np.linalg.svd(correspondences, full_matrices=True)
+    nullSpace = vh[-1,:]
+
+    X = nullSpace / nullSpace[3]
+
+    #pixelA = np.array([datums[imgIDA].poseKeypoints[personA,2,0],datums[imgIDA].poseKeypoints[personA,2,1],1])
+    #    pixelB = np.array([datums[imgIDB].poseKeypoints[personB,2,0],datums[imgIDB].poseKeypoints[personB,2,1],1])
+    #    pixelC = np.array([datums[imgIDC].poseKeypoints[personC,2,0],datums[imgIDC].poseKeypoints[personC,2,1],1])
+
+
+    #    skewA = skew(pixelA)
+    #    skewB = skew(pixelB)
+    #    skewC = skew(pixelC)
+        
+    #    tfA = np.dot(skewA,projectiveMatrixA)
+    #    tfB = np.dot(skewB,projectiveMatrixB)
+
+    #    bigMatrix = np.vstack((tfA,tfB))
+
+    #    u, s, vh = np.linalg.svd(bigMatrix, full_matrices=True)
+
+    #    nullSpace = vh[-1,:]
+    #    worldCoordinate = nullSpace / nullSpace[3]
+
+    return X
 
 
 
@@ -356,6 +400,12 @@ if __name__ == '__main__':
         nullSpace = vh[-1,:]
         worldCoordinate = nullSpace / nullSpace[3]
 
+        
+        t1 = np.zeros((1,3))
+        t2 = np.zeros((1,3))
+        t1[0] = pixelA
+        t2[0] = pixelB
+        worldCoordinate2 = TriangulatePoints(projectiveMatrixA,t1,projectiveMatrixB,t2)
 
 
         # geometric method:
