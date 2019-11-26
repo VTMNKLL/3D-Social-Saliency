@@ -188,21 +188,24 @@ def TwoPersonRANSAC(datums, intrinsics, extrinsics, cameraLocations):
 
 # Px is the projection matrix, px is the corresponding pixel coordinates of the same 3D point
 # px should be shape 1xNx3 (body part)x(correspondence in each image)x(x,y,confidence)
-def TriangulatePoints(P1, p1, P2, p2):
+def TriangulatePoints(P, p1, p2, confidenceThreshold = .7):
 
     correspondences = np.zeros((p1.shape[0]*6,4))
 
     j = 0
     
     for i in range(p1.shape[0]):
-        pixel = (p1[i,0],p1[i,1],1)
-        correspondences[j:j+3,:] = np.dot(skew(pixel),P1)
+        val = p1[i,2]
+        if val > confidenceThreshold:
+            pixel = (p1[i,0],p1[i,1],1)
+            correspondences[j:j+3,:] = np.dot(skew(pixel),P[i])
         j += 3
 
 
     for i in range(p2.shape[0]):
-        pixel = (p2[i,0],p2[i,1],1)
-        correspondences[j:j+3,:] = np.dot(skew(pixel),P2)
+        if p2[i,2] > confidenceThreshold:
+            pixel = (p2[i,0],p2[i,1],1)
+            correspondences[j:j+3,:] = np.dot(skew(pixel),P[i])
         j += 3
 
     u, s, vh = np.linalg.svd(correspondences, full_matrices=True)
@@ -231,6 +234,11 @@ def TriangulatePoints(P1, p1, P2, p2):
 
     return X
 
+
+def getPoint2LineDistance( point, line ):
+        pixel = (point[0],point[1],1)
+        augmentedLineMagnitude = math.sqrt(line[0]**2 + line[1]**2)
+        return abs(np.dot(pixel,line))/augmentedLineMagnitude
 
 
 if __name__ == '__main__':
@@ -401,11 +409,11 @@ if __name__ == '__main__':
         worldCoordinate = nullSpace / nullSpace[3]
 
         
-        t1 = np.zeros((1,3))
-        t2 = np.zeros((1,3))
+        t1 = np.zeros((2,3))
+        t2 = np.zeros((2,3))
         t1[0] = pixelA
-        t2[0] = pixelB
-        worldCoordinate2 = TriangulatePoints(projectiveMatrixA,t1,projectiveMatrixB,t2)
+        t2[1] = pixelB
+        worldCoordinate2 = TriangulatePoints(np.array([projectiveMatrixA,projectiveMatrixB]),t1,t2)
 
 
         # geometric method:
@@ -586,19 +594,19 @@ if __name__ == '__main__':
                 fundMatrixI = GetFundamentalMatrix(cameraIntrinsics[imgIDA],cameraExtrinsics[imgIDA][:3,:3],cameraExtrinsics[imgIDA][:3,3], cameraFromWorld[imgIDA], cameraIntrinsics[i],cameraExtrinsics[i][:3,:3],cameraExtrinsics[i][:3,3], cameraFromWorld[i])
                 fundTransI = np.transpose(fundMatrixI)
                 lineInI = np.dot(fundTransI,bodypartPixel)
-                DrawLineOnImage( imagesToProcess[i], lineInI)
+#                DrawLineOnImage( imagesToProcess[i], lineInI)
         
             #DrawLineOnImage( imagesToProcess[imgIDA], lineInA)
             #DrawLineOnImage( imagesToProcess[imgIDB], lineInB)
             #DrawLineOnImage( imagesToProcess[imgIDD], lineInD)
             
             color = (0,255,0)
-            cv2.circle(imagesToProcess[imgIDA], (int(bodypartPixel[0]),int(bodypartPixel[1])),3,color,2)
+#            cv2.circle(imagesToProcess[imgIDA], (int(bodypartPixel[0]),int(bodypartPixel[1])),3,color,2)
         
-        for i in range(numberOfCameras):
-            cv2.namedWindow(str(i), cv2.WINDOW_NORMAL)
-            cv2.imshow(str(i),imagesToProcess[i])
-            cv2.resizeWindow(str(i), imagesToProcess[i].shape[1]//3, imagesToProcess[i].shape[0]//3)
+#        for i in range(numberOfCameras):
+#            cv2.namedWindow(str(i), cv2.WINDOW_NORMAL)
+#            cv2.imshow(str(i),imagesToProcess[i])
+#            cv2.resizeWindow(str(i), imagesToProcess[i].shape[1]//3, imagesToProcess[i].shape[0]//3)
 
         ##cv2.imshow('A', imagesToProcess[imgIDA])
         ##cv2.imshow('B', imagesToProcess[imgIDB])
@@ -610,73 +618,128 @@ if __name__ == '__main__':
         #cv2.imwrite('C.jpg', imagesToProcess[imgIDC])
         #cv2.imwrite('D.jpg', imagesToProcess[imgIDD])
         #cv2.imwrite('0.jpg', imagesToProcess[0])
-        cv2.waitKey()
+#        cv2.waitKey()
 
         #imageToProcess = cv2.imread(args[0].image_path)
         #datum.cvInputData = imageToProcess
         #opWrapper.emplaceAndPop([datum])
 
 
+
+
+
+        # Let's find and triangulate a person in another image given a person in the current image!
+        initialPerson = personA
+        intialImage = imgIDA
+
+        secondImage = imgIDB
         
-        projectiveMatrix0 = np.dot(cameraIntrinsics[0],cameraExtrinsics[0])
-        projectiveMatrix1 = np.dot(cameraIntrinsics[1],cameraExtrinsics[1])
-        projectiveMatrix11 = np.dot(cameraIntrinsics[11],cameraExtrinsics[11])
-        #pixels = [None] * (numberOfCameras-1)
+        fundMatrixB = GetFundamentalMatrix(cameraIntrinsics[imgIDA],cameraExtrinsics[imgIDA][:3,:3],cameraExtrinsics[imgIDA][:3,3], cameraFromWorld[imgIDA], cameraIntrinsics[imgIDB],cameraExtrinsics[imgIDB][:3,:3],cameraExtrinsics[imgIDB][:3,3], cameraFromWorld[imgIDB])
+        fundTransB = np.transpose(fundMatrixB)
 
-        for i in range(numberOfCameras-1):
-            j = i+1
-            worldCoord = np.array([cameraFromWorld[j][0], cameraFromWorld[j][1], cameraFromWorld[j][2], 1])
-            pixel = np.dot(projectiveMatrix0, worldCoord)
-            pixel = pixel/pixel[2]
-            print('camera: ' + str(j) + ' with pixel ' + str(pixel))
-            color = (0,0,255)
-            #pixels[i] = pixel
-            cv2.circle(imagesToProcess[0], (int(pixel[0]),int(pixel[1])),3,color,2)
-
-
-        for i in range(numberOfCameras):
-            j = i
-            if i == 1:
-                continue
-            worldCoord = np.array([cameraFromWorld[j][0], cameraFromWorld[j][1], cameraFromWorld[j][2], 1])
-            pixel = np.dot(projectiveMatrix1, worldCoord)
-            pixel = pixel/pixel[2]
-            print('camera: ' + str(j) + ' with pixel ' + str(pixel))
-            color = (0,0,255)
-            #pixels[i] = pixel
-            cv2.circle(imagesToProcess[1], (int(pixel[0]),int(pixel[1])),3,color,2)
-
-        for i in range(numberOfCameras):
-            j = i
-            if i == 11:
-                continue
-            worldCoord = np.array([cameraFromWorld[j][0], cameraFromWorld[j][1], cameraFromWorld[j][2], 1])
-            pixel = np.dot(projectiveMatrix11, worldCoord)
-            pixel = pixel/pixel[2]
-            print('camera: ' + str(j) + ' with pixel ' + str(pixel))
-            color = (0,0,255)
-            #pixels[i] = pixel
-            cv2.circle(imagesToProcess[11], (int(pixel[0]),int(pixel[1])),3,color,2)
-
-        #projectiveMatrix11 = np.dot(cameraIntrinsics[11],cameraExtrinsics[11])
-
-        #worldCoord11 = np.array([cameraExtrinsics[10][0,3], cameraExtrinsics[10][1,3], cameraExtrinsics[10][2,3], 1])
-
-        #pixel = np.dot(projectiveMatrix0, worldCoord11)
-        #pixel = pixel/pixel[2]
-        #print(pixel)
+        bodypartID = 2
+        bodypartPixelA = np.array([datums[imgIDA].poseKeypoints[personA,bodypartID,0], datums[imgIDA].poseKeypoints[personA,bodypartID,1], 1])
+        color = (0,255,0)
+        cv2.circle(imagesToProcess[imgIDA], (int(bodypartPixelA[0]),int(bodypartPixelA[1])),3,color,2)
+        lineInB = np.dot(fundTransB,bodypartPixelA)
+        DrawLineOnImage( imagesToProcess[imgIDB], lineInB)
         
+        #MatchesPerPerson = np.zeros(datums[imgIDB].poseKeypoints.shape[0])
         
-        cv2.imshow('0', imagesToProcess[0])
-        cv2.imshow('1', imagesToProcess[1])
-        cv2.imshow('11', imagesToProcess[11])
+        for personIndex in range(datums[imgIDB].poseKeypoints.shape[0]): # for each person in image b[personA,point,0]
+            
+            #DrawLineOnImage( imagesToProcess[i], lineInB )
+        
+            #DrawLineOnImage( imagesToProcess[imgIDA], lineInA)
+            #DrawLineOnImage( imagesToProcess[imgIDB], lineInB)
+            #DrawLineOnImage( imagesToProcess[imgIDD], lineInD)
 
-        cv2.imwrite('0.jpg', imagesToProcess[0])
-        cv2.imwrite('1.jpg', imagesToProcess[1])
-        cv2.imwrite('11.jpg', imagesToProcess[11])
+            bodypartPixelB = np.array([datums[imgIDB].poseKeypoints[personIndex,bodypartID,0], datums[imgIDB].poseKeypoints[personIndex,bodypartID,1], 1])
+            dist = getPoint2LineDistance(bodypartPixelB,lineInB)
+            print("person " + str(personIndex) + ", dist " + str(dist))
+            color = (255 * np.clip((dist/50),0,1), 255 * np.clip((1 - dist/50),0,1), 255 * np.clip((dist/50),0,1))
+            cv2.circle(imagesToProcess[imgIDB], (int(bodypartPixelB[0]),int(bodypartPixelB[1])),3,color,2)
+
+            
+        cv2.namedWindow('A', cv2.WINDOW_NORMAL)
+        cv2.imshow('A',imagesToProcess[imgIDA])
+        cv2.resizeWindow('A', imagesToProcess[imgIDA].shape[1]//2, imagesToProcess[imgIDA].shape[0]//2)
+
+        cv2.namedWindow('B', cv2.WINDOW_NORMAL)
+        cv2.imshow('B',imagesToProcess[imgIDB])
+        cv2.resizeWindow('B', imagesToProcess[imgIDB].shape[1]//2, imagesToProcess[imgIDB].shape[0]//2)
+
+        cv2.waitKey();
 
 
-        cv2.waitKey()
-    #except Exception as e:
-    #    print(e)
-    #    sys.exit(-1)
+
+
+
+
+
+
+
+
+        
+#        projectiveMatrix0 = np.dot(cameraIntrinsics[0],cameraExtrinsics[0])
+#        projectiveMatrix1 = np.dot(cameraIntrinsics[1],cameraExtrinsics[1])
+#        projectiveMatrix11 = np.dot(cameraIntrinsics[11],cameraExtrinsics[11])
+#        #pixels = [None] * (numberOfCameras-1)
+#
+#        for i in range(numberOfCameras-1):
+#            j = i+1
+#            worldCoord = np.array([cameraFromWorld[j][0], cameraFromWorld[j][1], cameraFromWorld[j][2], 1])
+#            pixel = np.dot(projectiveMatrix0, worldCoord)
+#            pixel = pixel/pixel[2]
+#            print('camera: ' + str(j) + ' with pixel ' + str(pixel))
+#            color = (0,0,255)
+#            #pixels[i] = pixel
+#            cv2.circle(imagesToProcess[0], (int(pixel[0]),int(pixel[1])),3,color,2)
+#
+#
+#        for i in range(numberOfCameras):
+#            j = i
+#            if i == 1:
+#                continue
+#            worldCoord = np.array([cameraFromWorld[j][0], cameraFromWorld[j][1], cameraFromWorld[j][2], 1])
+#            pixel = np.dot(projectiveMatrix1, worldCoord)
+#            pixel = pixel/pixel[2]
+#            print('camera: ' + str(j) + ' with pixel ' + str(pixel))
+#            color = (0,0,255)
+#            #pixels[i] = pixel
+#            cv2.circle(imagesToProcess[1], (int(pixel[0]),int(pixel[1])),3,color,2)
+#
+#        for i in range(numberOfCameras):
+#            j = i
+#            if i == 11:
+#                continue
+#            worldCoord = np.array([cameraFromWorld[j][0], cameraFromWorld[j][1], cameraFromWorld[j][2], 1])
+#            pixel = np.dot(projectiveMatrix11, worldCoord)
+#            pixel = pixel/pixel[2]
+#            print('camera: ' + str(j) + ' with pixel ' + str(pixel))
+#            color = (0,0,255)
+#            #pixels[i] = pixel
+#            cv2.circle(imagesToProcess[11], (int(pixel[0]),int(pixel[1])),3,color,2)
+#
+#        #projectiveMatrix11 = np.dot(cameraIntrinsics[11],cameraExtrinsics[11])
+#
+#        #worldCoord11 = np.array([cameraExtrinsics[10][0,3], cameraExtrinsics[10][1,3], cameraExtrinsics[10][2,3], 1])
+#
+#        #pixel = np.dot(projectiveMatrix0, worldCoord11)
+#        #pixel = pixel/pixel[2]
+#        #print(pixel)
+#        
+#        
+#        cv2.imshow('0', imagesToProcess[0])
+#        cv2.imshow('1', imagesToProcess[1])
+#        cv2.imshow('11', imagesToProcess[11])
+#
+#        cv2.imwrite('0.jpg', imagesToProcess[0])
+#        cv2.imwrite('1.jpg', imagesToProcess[1])
+#        cv2.imwrite('11.jpg', imagesToProcess[11])
+#
+#
+#        cv2.waitKey()
+#    #except Exception as e:
+#    #    print(e)
+#    #    sys.exit(-1)
