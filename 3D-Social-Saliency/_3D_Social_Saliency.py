@@ -9,6 +9,8 @@ import numpy as np
 #import quaternion
 from pyquaternion import Quaternion
 import math
+from mpl_toolkits import mplot3d
+import matplotlib.pyplot as plt
 
 openPoseDirectory = 'C:\\Toolkits\\OpenPose'
 openPoseBuildDirectory = openPoseDirectory + '\\build'
@@ -38,6 +40,15 @@ def HomeComputer(home):
         cameraIntrinsicsFileLocation = undistortedImagesDirectory + '\\intrinsic_z.txt'
         cameraExtrinsicsFileLocation = undistortedImagesDirectory + '\\camera_z.txt'
     return
+
+def axisEqual3D(ax):
+    extents = np.array([getattr(ax, 'get_{}lim'.format(dim))() for dim in 'xyz'])
+    sz = extents[:,1] - extents[:,0]
+    centers = np.mean(extents, axis=1)
+    maxsize = max(abs(sz))
+    r = maxsize/2
+    for ctr, dim in zip(centers, 'xyz'):
+        getattr(ax, 'set_{}lim'.format(dim))(ctr - r, ctr + r)
 
 
 def skew(x):
@@ -629,38 +640,58 @@ if __name__ == '__main__':
 
 
         # Let's find and triangulate a person in another image given a person in the current image!
-        initialPerson = personA
+        initialPerson = 0 # personA
         intialImage = imgIDA
 
         secondImage = imgIDB
         
         fundMatrixB = GetFundamentalMatrix(cameraIntrinsics[imgIDA],cameraExtrinsics[imgIDA][:3,:3],cameraExtrinsics[imgIDA][:3,3], cameraFromWorld[imgIDA], cameraIntrinsics[imgIDB],cameraExtrinsics[imgIDB][:3,:3],cameraExtrinsics[imgIDB][:3,3], cameraFromWorld[imgIDB])
         fundTransB = np.transpose(fundMatrixB)
+        
+        confidenceThreshold = .6 # points with less confidence than this are discarded
+        matchThreshold = 20 # if it's within 15 pixels it's a good match
 
-        bodypartID = 2
-        bodypartPixelA = np.array([datums[imgIDA].poseKeypoints[personA,bodypartID,0], datums[imgIDA].poseKeypoints[personA,bodypartID,1], 1])
-        color = (0,255,0)
-        cv2.circle(imagesToProcess[imgIDA], (int(bodypartPixelA[0]),int(bodypartPixelA[1])),3,color,2)
-        lineInB = np.dot(fundTransB,bodypartPixelA)
-        DrawLineOnImage( imagesToProcess[imgIDB], lineInB)
+        matchCounter = np.zeros((datums[imgIDB].poseKeypoints.shape[0], datums[imgIDB].poseKeypoints.shape[1])) # number of people in imageB x number of bodyparts in imageB
+        for bodypartID in range(datums[imgIDA].poseKeypoints.shape[1]): # for all body parts
+
+            #bodypartID = 2
+            bodypartPixelA = np.array([datums[imgIDA].poseKeypoints[initialPerson,bodypartID,0], datums[imgIDA].poseKeypoints[initialPerson,bodypartID,1], 1])
+
+            if datums[imgIDA].poseKeypoints[initialPerson,bodypartID,2] < confidenceThreshold:
+                print('not confidence enough for bodypart ' + str(bodypartID))
+                cv2.circle(imagesToProcess[imgIDA], (int(bodypartPixelA[0]),int(bodypartPixelA[1])),3,(0,0,255),2)
+                continue
+
+            color = (0,255,0)
+            cv2.circle(imagesToProcess[imgIDA], (int(bodypartPixelA[0]),int(bodypartPixelA[1])),3,color,2)
+            lineInB = np.dot(fundTransB,bodypartPixelA)
+            DrawLineOnImage( imagesToProcess[imgIDB], lineInB)
         
-        #MatchesPerPerson = np.zeros(datums[imgIDB].poseKeypoints.shape[0])
         
-        for personIndex in range(datums[imgIDB].poseKeypoints.shape[0]): # for each person in image b[personA,point,0]
+            for personIndex in range(datums[imgIDB].poseKeypoints.shape[0]): # for each person in image b[initialPerson,point,0] # TODO: order of nesting should change to avoid cache misses (for each person for each body part
             
-            #DrawLineOnImage( imagesToProcess[i], lineInB )
+                #DrawLineOnImage( imagesToProcess[i], lineInB )
         
-            #DrawLineOnImage( imagesToProcess[imgIDA], lineInA)
-            #DrawLineOnImage( imagesToProcess[imgIDB], lineInB)
-            #DrawLineOnImage( imagesToProcess[imgIDD], lineInD)
+                #DrawLineOnImage( imagesToProcess[imgIDA], lineInA)
+                #DrawLineOnImage( imagesToProcess[imgIDB], lineInB)
+                #DrawLineOnImage( imagesToProcess[imgIDD], lineInD)
+                if datums[imgIDB].poseKeypoints[personIndex,bodypartID,2] < confidenceThreshold:
+                    cv2.circle(imagesToProcess[imgIDB], (int(bodypartPixelB[0]),int(bodypartPixelB[1])),3,(0,0,255),2)
+                    continue
 
-            bodypartPixelB = np.array([datums[imgIDB].poseKeypoints[personIndex,bodypartID,0], datums[imgIDB].poseKeypoints[personIndex,bodypartID,1], 1])
-            dist = getPoint2LineDistance(bodypartPixelB,lineInB)
-            print("person " + str(personIndex) + ", dist " + str(dist))
-            color = (255 * np.clip((dist/50),0,1), 255 * np.clip((1 - dist/50),0,1), 255 * np.clip((dist/50),0,1))
-            cv2.circle(imagesToProcess[imgIDB], (int(bodypartPixelB[0]),int(bodypartPixelB[1])),3,color,2)
+                bodypartPixelB = np.array([datums[imgIDB].poseKeypoints[personIndex,bodypartID,0], datums[imgIDB].poseKeypoints[personIndex,bodypartID,1], 1])
+                dist = getPoint2LineDistance(bodypartPixelB,lineInB)
+                if dist < matchThreshold:
+                    print("match at " + str(personIndex))
+                    matchCounter[personIndex,bodypartID] += 1
+                print("person " + str(personIndex) + ", dist " + str(dist))
+                color = (255 * np.clip((dist/50),0,1), 255 * np.clip((1 - dist/50),0,1), 255 * np.clip((dist/50),0,1))
+                cv2.circle(imagesToProcess[imgIDB], (int(bodypartPixelB[0]),int(bodypartPixelB[1])),3,color,2)
 
-            
+        matchesPerPerson = np.sum(matchCounter,axis = 1)
+        matchingPersonIndex = np.argmax(matchesPerPerson)
+        print('The best match is person ' + str(matchingPersonIndex) + ' with ' + str(matchesPerPerson[matchingPersonIndex]) + ' matches. Preson B was ' + str(personB))
+
         cv2.namedWindow('A', cv2.WINDOW_NORMAL)
         cv2.imshow('A',imagesToProcess[imgIDA])
         cv2.resizeWindow('A', imagesToProcess[imgIDA].shape[1]//2, imagesToProcess[imgIDA].shape[0]//2)
@@ -673,12 +704,43 @@ if __name__ == '__main__':
 
 
 
+        links = np.array([[0,1],[1,2],[2,3],[3,4],[1,5],[5,6],[6,7],[1,8],[8,9],[9,10],[10,11],[11,22],[22,23],[11,24],[8,12],[12,13],[13,14],[14,19],[19,20],[14,21],[0,15],[15,17],[0,16],[16,18]])
 
+        reconstructedPoints = np.zeros((datums[imgIDA].poseKeypoints.shape[1],4))
+        
+        relaxedConfidenceThreshold = .2
+        for i in range(reconstructedPoints.shape[0]):
+            confidenceA = datums[imgIDA].poseKeypoints[initialPerson,i,2]
+            confidenceB = datums[imgIDB].poseKeypoints[matchingPersonIndex,i,2]
+            if confidenceA > relaxedConfidenceThreshold and confidenceB > relaxedConfidenceThreshold:
+                print('Reconstructing body part ' + str(i) + ' with confidence ' + str(confidenceA) + ' and ' + str(confidenceB) + '...')
+                t1 = np.zeros((2,3))
+                t2 = np.zeros((2,3))
+                t1[0] = np.array([datums[imgIDA].poseKeypoints[initialPerson,i,0], datums[imgIDA].poseKeypoints[initialPerson,i,1], 1])
+                t2[1] = np.array([datums[imgIDB].poseKeypoints[matchingPersonIndex,i,0], datums[imgIDA].poseKeypoints[matchingPersonIndex,i,1], 1])
+                reconstructedPoints[i] = TriangulatePoints(np.array([projectiveMatrixA,projectiveMatrixB]),t1,t2)
+            else:
+                reconstructedPoints[i,3] = -1 # no reconstruction
+        print('done reconstructing')
 
+        
+        fig = plt.figure()
+        ax = plt.axes(projection='3d')
+        #ax.set_zlim3d(0, 5)
+        #ax.set_ylim3d(0, 5)
+        #ax.set_xlim3d(-5, 0) 
+        #plt.gca().set_aspect('equal', adjustable='box')
+        for link in links:
+            x0 = reconstructedPoints[link[0]]
+            x1 = reconstructedPoints[link[1]]
+            if x0[3] < 0 or x1[3] < 0: # don't reconstruct invalid points
+                continue
+            ax.plot3D((x0[0],x1[0]),(x0[2],x1[2]),(-x0[1],-x1[1]), 'gray')
 
-
-
-
+        reconstructedPoints = reconstructedPoints[reconstructedPoints[:, 3] != -1]
+        ax.scatter(reconstructedPoints[:,0],reconstructedPoints[:,2],-reconstructedPoints[:,1], cmap= 'Greens')
+        axisEqual3D(ax)
+        plt.show()
 
         
 #        projectiveMatrix0 = np.dot(cameraIntrinsics[0],cameraExtrinsics[0])
