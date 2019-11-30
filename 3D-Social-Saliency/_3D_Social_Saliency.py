@@ -640,7 +640,7 @@ if __name__ == '__main__':
 
 
         # Let's find and triangulate a person in another image given a person in the current image!
-        initialPerson = 0 # personA
+        initialPerson = 0 #personA
         intialImage = imgIDA
 
         secondImage = imgIDB
@@ -648,7 +648,7 @@ if __name__ == '__main__':
         fundMatrixB = GetFundamentalMatrix(cameraIntrinsics[imgIDA],cameraExtrinsics[imgIDA][:3,:3],cameraExtrinsics[imgIDA][:3,3], cameraFromWorld[imgIDA], cameraIntrinsics[imgIDB],cameraExtrinsics[imgIDB][:3,:3],cameraExtrinsics[imgIDB][:3,3], cameraFromWorld[imgIDB])
         fundTransB = np.transpose(fundMatrixB)
         
-        confidenceThreshold = .6 # points with less confidence than this are discarded
+        confidenceThreshold = .75 # points with less confidence than this are discarded
         matchThreshold = 20 # if it's within 15 pixels it's a good match
 
         matchCounter = np.zeros((datums[imgIDB].poseKeypoints.shape[0], datums[imgIDB].poseKeypoints.shape[1])) # number of people in imageB x number of bodyparts in imageB
@@ -692,23 +692,24 @@ if __name__ == '__main__':
         matchingPersonIndex = np.argmax(matchesPerPerson)
         print('The best match is person ' + str(matchingPersonIndex) + ' with ' + str(matchesPerPerson[matchingPersonIndex]) + ' matches. Preson B was ' + str(personB))
 
-        cv2.namedWindow('A', cv2.WINDOW_NORMAL)
-        cv2.imshow('A',imagesToProcess[imgIDA])
-        cv2.resizeWindow('A', imagesToProcess[imgIDA].shape[1]//2, imagesToProcess[imgIDA].shape[0]//2)
 
-        cv2.namedWindow('B', cv2.WINDOW_NORMAL)
-        cv2.imshow('B',imagesToProcess[imgIDB])
-        cv2.resizeWindow('B', imagesToProcess[imgIDB].shape[1]//2, imagesToProcess[imgIDB].shape[0]//2)
-
-        cv2.waitKey();
 
 
 
         links = np.array([[0,1],[1,2],[2,3],[3,4],[1,5],[5,6],[6,7],[1,8],[8,9],[9,10],[10,11],[11,22],[22,23],[11,24],[8,12],[12,13],[13,14],[14,19],[19,20],[14,21],[0,15],[15,17],[0,16],[16,18]])
 
+        datumA = datums[imgIDA].poseKeypoints[initialPerson]
+        datumB = datums[imgIDB].poseKeypoints[matchingPersonIndex]
+
+        for i, pointA, pointB in zip(range(datumA.shape[0]), datumA,datumB):
+            if i == 4 or i == 3:
+                cv2.circle(imagesToProcess[imgIDA], (int(pointA[0]),int(pointA[1])),4,(255,255,0),4)
+                cv2.circle(imagesToProcess[imgIDB], (int(pointB[0]),int(pointB[1])),4,(255,255,0),4)
+
+
         reconstructedPoints = np.zeros((datums[imgIDA].poseKeypoints.shape[1],4))
         
-        relaxedConfidenceThreshold = .2
+        relaxedConfidenceThreshold = .6
         for i in range(reconstructedPoints.shape[0]):
             confidenceA = datums[imgIDA].poseKeypoints[initialPerson,i,2]
             confidenceB = datums[imgIDB].poseKeypoints[matchingPersonIndex,i,2]
@@ -717,12 +718,36 @@ if __name__ == '__main__':
                 t1 = np.zeros((2,3))
                 t2 = np.zeros((2,3))
                 t1[0] = np.array([datums[imgIDA].poseKeypoints[initialPerson,i,0], datums[imgIDA].poseKeypoints[initialPerson,i,1], 1])
-                t2[1] = np.array([datums[imgIDB].poseKeypoints[matchingPersonIndex,i,0], datums[imgIDA].poseKeypoints[matchingPersonIndex,i,1], 1])
+                t2[1] = np.array([datums[imgIDB].poseKeypoints[matchingPersonIndex,i,0], datums[imgIDB].poseKeypoints[matchingPersonIndex,i,1], 1])
                 reconstructedPoints[i] = TriangulatePoints(np.array([projectiveMatrixA,projectiveMatrixB]),t1,t2)
             else:
                 reconstructedPoints[i,3] = -1 # no reconstruction
         print('done reconstructing')
+        
 
+
+        for i, point in zip(range(reconstructedPoints.shape[0]),reconstructedPoints):
+            projectedPointA = np.dot(projectiveMatrixA,point)
+            projectedPointA = projectedPointA / projectedPointA[2]
+            projectedPointB = np.dot(projectiveMatrixB,point)
+            projectedPointB = projectedPointB / projectedPointB[2]
+            color = (0,255,255)
+            if i == 4:
+                color = (0,0,255)
+            cv2.circle(imagesToProcess[imgIDA], (int(projectedPointA[0]),int(projectedPointA[1])),3,color,3)
+            cv2.circle(imagesToProcess[imgIDB], (int(projectedPointB[0]),int(projectedPointB[1])),3,color,3)
+
+
+
+        
+        cv2.namedWindow('A', cv2.WINDOW_NORMAL)
+        cv2.imshow('A',imagesToProcess[imgIDA])
+        cv2.resizeWindow('A', imagesToProcess[imgIDA].shape[1]//2, imagesToProcess[imgIDA].shape[0]//2)
+
+        cv2.namedWindow('B', cv2.WINDOW_NORMAL)
+        cv2.imshow('B',imagesToProcess[imgIDB])
+        cv2.resizeWindow('B', imagesToProcess[imgIDB].shape[1]//2, imagesToProcess[imgIDB].shape[0]//2)
+        cv2.waitKey();
         
         fig = plt.figure()
         ax = plt.axes(projection='3d')
