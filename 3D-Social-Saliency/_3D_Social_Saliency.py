@@ -33,7 +33,7 @@ cameraExtrinsicsFileLocation = 'E:\\AML\\Data\\boat_data\\boat_1fps_200s\\calibr
 calibrationDirectory = undistortedImagesDirectory + '\\\calibration'
 
 globalAtHome = False
-
+EPIPOLAR_MATCHING = False
 def HomeComputer(home):
     if (home):
         undistortedImagesDirectory = 'C:\\Users\\Zach\\source\\repos\\ComputerVision\\3D Human Reconstruction'
@@ -269,11 +269,59 @@ def TriangulatePoints(P, p, confidenceThreshold = .7):
 
     return X
 
+def Triangulate2Points( Ex, In, Cfw, imA, imB, pA, pB, confidenceThreshold = .7 ):
+     # geometric method:
+    R1inv = np.transpose(getR(Ex[imA]))
+    R2inv = np.transpose(getR(Ex[imB]))
+    K1inv = np.linalg.inv(In[imA])
+    K2inv = np.linalg.inv(In[imB])
+    ray1 = np.dot(np.dot(R1inv, K1inv),pA)
+    ray2 = np.dot(np.dot(R2inv, K2inv),pB)
+    A = np.transpose(np.vstack((ray1, -ray2))) # numpy is really dumb, the rays get turned back into 1d vectors which numpy just treats as rows....
+    t1 = getT(Ex[imA])
+    t2 = getT(Ex[imB])
+    b = Cfw[imB] - Cfw[imA] #np.dot(R1inv,t1)-np.dot(R2inv,t2)
+    distance = np.linalg.lstsq(A,b)[0]
+        
+    X1world = distance[0] * ray1 + Cfw[imgIDA]
+    X2world = distance[1] * ray2 + Cfw[imgIDB]
+    XAvgWorld = X1world + ( ( X2world - X1world ) * .5 )
+    return XAvgWorld
 
 def getPoint2LineDistance( point, line ):
         pixel = (point[0],point[1],1)
         augmentedLineMagnitude = math.sqrt(line[0]**2 + line[1]**2)
         return abs(np.dot(pixel,line))/augmentedLineMagnitude
+
+# Choose N Unique values from the set x
+# fixed contains the indices of values in x that you wish to for sure include
+# fixed as index false means that you want to keep specific values in x (slower)
+def chooseNUnique(x, n, fixed = [], fixedAsIndex = True):
+       
+    choiceSize = n
+    p = np.zeros(choiceSize);
+    seen = [-1 for i in range(choiceSize)];
+    for i in range(len(fixed)):
+        seen[i] = fixed[i]
+        p[i] = x[seen[i]]
+        if not fixedAsIndex:
+            p[i] = fixed[i]
+            seen[i] = np.where(x == fixed[i])[0][0] # get the first occurrence of fixed[i]
+
+    numFeatures = len(x);
+    
+    count = len(fixed);
+    while count < choiceSize:
+        randid = np.random.randint(0,numFeatures);
+
+        if any([seen[i] == randid for i in range(len(seen))]): # if the value has been seen and accepted
+            continue;
+
+        seen[count] = randid;
+        p[count] = x[randid];
+        count = count + 1;
+
+    return p
 
 
 if __name__ == '__main__':
@@ -473,442 +521,283 @@ if __name__ == '__main__':
         XAvgWorld2 = (worldCoordinate[:3] + X1world + X2world) * (1/3)
 
 
-        ##pixelGuess = np.dot(projectiveMatrixC, worldCoordinate)
-        ##pixelGuess = pixelGuess / pixelGuess[2]
-        ##pixGuessX1 = np.dot(projectiveMatrixC, np.hstack((X1world,1)))
-        ##pixGuessX1 = pixGuessX1 / pixGuessX1[2]
-        ##pixGuessX2 = np.dot(projectiveMatrixC, np.hstack((X2world,1)))
-        ##pixGuessX2 = pixGuessX2 / pixGuessX2[2]
-        ##pixGuessXA = np.dot(projectiveMatrixC, np.hstack((XAvgWorld,1)))
-        ##pixGuessXA = pixGuessXA / pixGuessXA[2]
-        ##pixGuessXA2 = np.dot(projectiveMatrixC, np.hstack((XAvgWorld2,1)))
-        ##pixGuessXA2 = pixGuessXA2 / pixGuessXA2[2]
-        ##color = (0,0,255)
-        ##cv2.circle(imagesToProcess[imgIDC], (int(pixelGuess[0]),int(pixelGuess[1])),3,color,2)
-        ##color = (0,255,255)
-        ##cv2.circle(imagesToProcess[imgIDC], (int(pixGuessX1[0]),int(pixGuessX1[1])),3,color,2)
-        ##color = (255,255,255)
-        ##cv2.circle(imagesToProcess[imgIDC], (int(pixGuessX2[0]),int(pixGuessX2[1])),3,color,2)
-        ##color = (255,0,255)
-        ##cv2.circle(imagesToProcess[imgIDC], (int(pixGuessXA[0]),int(pixGuessXA[1])),3,color,2)
-        ##color = (0,255,0)
-        ##cv2.circle(imagesToProcess[imgIDC], (int(pixGuessXA2[0]),int(pixGuessXA2[1])),3,color,2)
-        ###color = (255,255,0)
-        ###cv2.circle(imagesToProcess[imgIDC], (int(pixelC[0]),int(pixelC[1])),3,color,2)
 
 
-        ##pixelGuess = np.dot(projectiveMatrixA, worldCoordinate)
-        ##pixelGuess = pixelGuess / pixelGuess[2]
-        ##pixGuessX1 = np.dot(projectiveMatrixA, np.hstack((X1world,1)))
-        ##pixGuessX1 = pixGuessX1 / pixGuessX1[2]
-        ##pixGuessX2 = np.dot(projectiveMatrixA, np.hstack((X2world,1)))
-        ##pixGuessX2 = pixGuessX2 / pixGuessX2[2]
-        ##pixGuessXA = np.dot(projectiveMatrixA, np.hstack((XAvgWorld,1)))
-        ##pixGuessXA = pixGuessXA / pixGuessXA[2]
-        ##pixGuessXA2 = np.dot(projectiveMatrixA, np.hstack((XAvgWorld2,1)))
-        ##pixGuessXA2 = pixGuessXA2 / pixGuessXA2[2]
-        ##color = (0,0,255)
-        ##cv2.circle(imagesToProcess[imgIDA], (int(pixelGuess[0]),int(pixelGuess[1])),3,color,2)
-        ##color = (0,255,255)
-        ##cv2.circle(imagesToProcess[imgIDA], (int(pixGuessX1[0]),int(pixGuessX1[1])),3,color,2)
-        ##color = (255,255,255)
-        ##cv2.circle(imagesToProcess[imgIDA], (int(pixGuessX2[0]),int(pixGuessX2[1])),3,color,2)
-        ##color = (255,0,255)
-        ##cv2.circle(imagesToProcess[imgIDA], (int(pixGuessXA[0]),int(pixGuessXA[1])),3,color,2)
-        ##color = (0,255,0)
-        ##cv2.circle(imagesToProcess[imgIDA], (int(pixGuessXA2[0]),int(pixGuessXA2[1])),3,color,2)
-        ###color = (255,255,0)
-        ###cv2.circle(imagesToProcess[imgIDA], (int(pixelA[0]),int(pixelA[1])),3,color,2)
 
-        ##pixelGuess = np.dot(projectiveMatrixB, worldCoordinate)
-        ##pixelGuess = pixelGuess / pixelGuess[2]
-        ##pixGuessX1 = np.dot(projectiveMatrixB, np.hstack((X1world,1)))
-        ##pixGuessX1 = pixGuessX1 / pixGuessX1[2]
-        ##pixGuessX2 = np.dot(projectiveMatrixB, np.hstack((X2world,1)))
-        ##pixGuessX2 = pixGuessX2 / pixGuessX2[2]
-        ##pixGuessXA = np.dot(projectiveMatrixB, np.hstack((XAvgWorld,1)))
-        ##pixGuessXA = pixGuessXA / pixGuessXA[2]
-        ##pixGuessXA2 = np.dot(projectiveMatrixB, np.hstack((XAvgWorld2,1)))
-        ##pixGuessXA2 = pixGuessXA2 / pixGuessXA2[2]
-        ##color = (0,0,255)
-        ##cv2.circle(imagesToProcess[imgIDB], (int(pixelGuess[0]),int(pixelGuess[1])),3,color,2)
-        ##color = (0,255,255)
-        ##cv2.circle(imagesToProcess[imgIDB], (int(pixGuessX1[0]),int(pixGuessX1[1])),3,color,2)
-        ##color = (255,255,255)
-        ##cv2.circle(imagesToProcess[imgIDB], (int(pixGuessX2[0]),int(pixGuessX2[1])),3,color,2)
-        ##color = (255,0,255)
-        ##cv2.circle(imagesToProcess[imgIDB], (int(pixGuessXA[0]),int(pixGuessXA[1])),3,color,2)
-        ##color = (0,255,0)
-        ##cv2.circle(imagesToProcess[imgIDB], (int(pixGuessXA2[0]),int(pixGuessXA2[1])),3,color,2)
-        ###color = (255,255,0)
-        ###cv2.circle(imagesToProcess[imgIDB], (int(pixelB[0]),int(pixelB[1])),3,color,2)
+        if not EPIPOLAR_MATCHING:
+            print('RANSAC METHOD')
 
-        ##pixelGuess = np.dot(projectiveMatrixD, worldCoordinate)
-        ##pixelGuess = pixelGuess / pixelGuess[2]
-        ##pixGuessX1 = np.dot(projectiveMatrixD, np.hstack((X1world,1)))
-        ##pixGuessX1 = pixGuessX1 / pixGuessX1[2]
-        ##pixGuessX2 = np.dot(projectiveMatrixD, np.hstack((X2world,1)))
-        ##pixGuessX2 = pixGuessX2 / pixGuessX2[2]
-        ##pixGuessXA = np.dot(projectiveMatrixD, np.hstack((XAvgWorld,1)))
-        ##pixGuessXA = pixGuessXA / pixGuessXA[2]
-        ##pixGuessXA2 = np.dot(projectiveMatrixD, np.hstack((XAvgWorld2,1)))
-        ##pixGuessXA2 = pixGuessXA2 / pixGuessXA2[2]
-        ##color = (0,0,255)
-        ##cv2.circle(imagesToProcess[imgIDD], (int(pixelGuess[0]),int(pixelGuess[1])),3,color,2)
-        ##color = (0,255,255)
-        ##cv2.circle(imagesToProcess[imgIDD], (int(pixGuessX1[0]),int(pixGuessX1[1])),3,color,2)
-        ##color = (255,255,255)
-        ##cv2.circle(imagesToProcess[imgIDD], (int(pixGuessX2[0]),int(pixGuessX2[1])),3,color,2)
-        ##color = (255,0,255)
-        ##cv2.circle(imagesToProcess[imgIDD], (int(pixGuessXA[0]),int(pixGuessXA[1])),3,color,2)
-        ##color = (0,255,0)
-        ##cv2.circle(imagesToProcess[imgIDD], (int(pixGuessXA2[0]),int(pixGuessXA2[1])),3,color,2)
+            initialPerson = 0#personA
+            initialImage = imgIDA
 
-
-        ##pixelGuess = np.dot(projectiveMatrix0, worldCoordinate)
-        ##pixelGuess = pixelGuess / pixelGuess[2]
-        ##pixGuessX1 = np.dot(projectiveMatrix0, np.hstack((X1world,1)))
-        ##pixGuessX1 = pixGuessX1 / pixGuessX1[2]
-        ##pixGuessX2 = np.dot(projectiveMatrix0, np.hstack((X2world,1)))
-        ##pixGuessX2 = pixGuessX2 / pixGuessX2[2]
-        ##pixGuessXA = np.dot(projectiveMatrix0, np.hstack((XAvgWorld,1)))
-        ##pixGuessXA = pixGuessXA / pixGuessXA[2]
-        ##pixGuessXA2 = np.dot(projectiveMatrix0, np.hstack((XAvgWorld2,1)))
-        ##pixGuessXA2 = pixGuessXA2 / pixGuessXA2[2]
-        ##color = (0,0,255)
-        ##cv2.circle(imagesToProcess[0], (int(pixelGuess[0]),int(pixelGuess[1])),3,color,2)
-        ##color = (0,255,255)
-        ##cv2.circle(imagesToProcess[0], (int(pixGuessX1[0]),int(pixGuessX1[1])),3,color,2)
-        ##color = (255,255,255)
-        ##cv2.circle(imagesToProcess[0], (int(pixGuessX2[0]),int(pixGuessX2[1])),3,color,2)
-        ##color = (255,0,255)
-        ##cv2.circle(imagesToProcess[0], (int(pixGuessXA[0]),int(pixGuessXA[1])),3,color,2)
-        ##color = (0,255,0)
-        ##cv2.circle(imagesToProcess[0], (int(pixGuessXA2[0]),int(pixGuessXA2[1])),3,color,2)
-
-
-        #for i in range(numberOfCameras):
-        #    if i == imgIDA:
-        #        continue
-        #    fundMatrix = GetFundamentalMatrix(cameraIntrinsics[imgIDA],cameraExtrinsics[imgIDA][:3,:3],cameraExtrinsics[imgIDA][:3,3],cameraIntrinsics[i],cameraExtrinsics[i][:3,:3],cameraExtrinsics[i][:3,3])
-        #    fundTrans = np.transpose(fundMatrix)
-
-        #    #lineInA = np.dot(fundMatrix,pixelB)
-        #    lineInB = np.dot(fundTrans,pixelA)
-        
-        #    #DrawLineOnImage( imagesToProcess[imgIDA], lineInA)
-        #    DrawLineOnImage( imagesToProcess[i], lineInB)
-        #    cv2.imshow(str(i), imagesToProcess[i])
-        #    #cv2.imshow('A', imagesToProcess[imgIDA])
-        #    #cv2.imshow('B', imagesToProcess[imgIDB])
-        #    #cv2.imshow('C', imagesToProcess[imgIDC])
-        #    #cv2.imshow('D', imagesToProcess[imgIDD])
-        #    #cv2.imshow('0', imagesToProcess[0])
-        #    #cv2.imwrite('A.jpg', imagesToProcess[imgIDA])
-        #    #cv2.imwrite('B.jpg', imagesToProcess[imgIDB])
-        #    #cv2.imwrite('C.jpg', imagesToProcess[imgIDC])
-        #    #cv2.imwrite('D.jpg', imagesToProcess[imgIDD])
-        #    #cv2.imwrite('0.jpg', imagesToProcess[0])
-        #cv2.waitKey()
-
-        fundMatrix = GetFundamentalMatrix(cameraIntrinsics[imgIDA],cameraExtrinsics[imgIDA][:3,:3],cameraExtrinsics[imgIDA][:3,3], cameraFromWorld[imgIDA], cameraIntrinsics[imgIDB],cameraExtrinsics[imgIDB][:3,:3],cameraExtrinsics[imgIDB][:3,3], cameraFromWorld[imgIDB])
-        fundTrans = np.transpose(fundMatrix)
-
-        fundMatrixD = GetFundamentalMatrix(cameraIntrinsics[imgIDA],cameraExtrinsics[imgIDA][:3,:3],cameraExtrinsics[imgIDA][:3,3], cameraFromWorld[imgIDA], cameraIntrinsics[imgIDD],cameraExtrinsics[imgIDD][:3,:3],cameraExtrinsics[imgIDD][:3,3], cameraFromWorld[imgIDD])
-        fundTransD = np.transpose(fundMatrixD)
-
-        for point in range(datums[imgIDA].poseKeypoints.shape[1]): #[personA,2,0]:
-            bodypartPixel = np.array([datums[imgIDA].poseKeypoints[personA,point,0], datums[imgIDA].poseKeypoints[personA,point,1], 1])
-
-            if datums[imgIDA].poseKeypoints[personA,point,2] < .7:
-                continue
-        
-
-            #lineInA = np.dot(fundMatrix,pixelB)
-            #lineInB = np.dot(fundTrans,bodypartPixel)
-            #lineInD = np.dot(fundTransD,bodypartPixel)
-
+            candidatesInImages = [None] * numberOfCameras # holds logical arrays for each camera where a True/1 represents a person is still a candidate and False/0 means they have been eliminated (either associating it with another person or by removing them entirely)
             for i in range(numberOfCameras):
-                fundMatrixI = GetFundamentalMatrix(cameraIntrinsics[imgIDA],cameraExtrinsics[imgIDA][:3,:3],cameraExtrinsics[imgIDA][:3,3], cameraFromWorld[imgIDA], cameraIntrinsics[i],cameraExtrinsics[i][:3,:3],cameraExtrinsics[i][:3,3], cameraFromWorld[i])
-                fundTransI = np.transpose(fundMatrixI)
-                lineInI = np.dot(fundTransI,bodypartPixel)
-#                DrawLineOnImage( imagesToProcess[i], lineInI)
-        
-            #DrawLineOnImage( imagesToProcess[imgIDA], lineInA)
-            #DrawLineOnImage( imagesToProcess[imgIDB], lineInB)
-            #DrawLineOnImage( imagesToProcess[imgIDD], lineInD)
+                candidatesInImages[i] = np.ones(datums[i].poseKeypoints.shape[0], dtype=bool) # all people for datum i
+
+            candidateImages = np.ones(numberOfCameras, dtype=bool)
+            candidateImages[initialImage] = False
+            #candidateImages[imgIDB] = True
+            #candidateImages[imgIDC] = True
             
-            color = (0,255,0)
-#            cv2.circle(imagesToProcess[imgIDA], (int(bodypartPixel[0]),int(bodypartPixel[1])),3,color,2)
-        
-#        for i in range(numberOfCameras):
-#            cv2.namedWindow(str(i), cv2.WINDOW_NORMAL)
-#            cv2.imshow(str(i),imagesToProcess[i])
-#            cv2.resizeWindow(str(i), imagesToProcess[i].shape[1]//3, imagesToProcess[i].shape[0]//3)
 
-        ##cv2.imshow('A', imagesToProcess[imgIDA])
-        ##cv2.imshow('B', imagesToProcess[imgIDB])
-        ###cv2.imshow('C', imagesToProcess[imgIDC])
-        ##cv2.imshow('D', imagesToProcess[imgIDD])
-        #cv2.imshow('0', imagesToProcess[0])
-        #cv2.imwrite('A.jpg', imagesToProcess[imgIDA])
-        #cv2.imwrite('B.jpg', imagesToProcess[imgIDB])
-        #cv2.imwrite('C.jpg', imagesToProcess[imgIDC])
-        #cv2.imwrite('D.jpg', imagesToProcess[imgIDD])
-        #cv2.imwrite('0.jpg', imagesToProcess[0])
-#        cv2.waitKey()
+            #randomImages = chooseNUnique( candidateImagesIdx, 2, [initialImage], False ) # always keep the index at [imgIDA]
+            RANSAC_ITERATIONS = 500
 
-        #imageToProcess = cv2.imread(args[0].image_path)
-        #datum.cvInputData = imageToProcess
-        #opWrapper.emplaceAndPop([datum])
+            candidateImages[initialImage] = False # don't choose the original image for triangulation
+            candidateImagesIdx = np.where( candidateImages == True )[0] # index buffer
+
+            bestInliers = 0
+            bestPerson = -1
+            bestImage = -1
+            confidenceThreshold = .7
+            ransacDistanceThreshold = 15
 
 
+            for r in range( RANSAC_ITERATIONS ):
+                inliers = 0
+                randomImage = int(chooseNUnique( candidateImagesIdx, 1 )[0])
 
+                candidatesInRandomImageIdx = np.where( candidatesInImages[randomImage] == True )[0] # index buffer to people
+                randomPerson = int(chooseNUnique( candidatesInRandomImageIdx, 1 )[0])
 
-
-        # Let's find and triangulate a person in another image given a person in the current image!
-        initialPerson = 1#personA
-        initialImage = 6#imgIDA
-
-
-        #keyPointsInEachImage = np.zeros((numberOfCameras, datums[initialImage].poseKeypoints.shape[1], 3)) #  bodyparts (25) x images (matches) x 3 points  # allows for indexing by x[i] means all pixels from the each image corresponding to bodypart i
-        keyPointsInEachImage = np.zeros((datums[initialImage].poseKeypoints.shape[1], numberOfCameras, 3)) #  bodyparts (25) x images (matches) x 3 points  # allows for indexing by x[i] means all pixels from the each image corresponding to bodypart i
-        keyPointsInEachImage[:,initialImage,:] = datums[initialImage].poseKeypoints[initialPerson]
-        matchThreshold = 8 # must have at least this many points correllated with the original person to work TODO: this is bad if the original person had less than 'matchThreshold' points... need some way to choose people without seeds
-        matchRatioThreshold = .6 # the percentage difference between the second best and first best must be less than this
-        
-        confidenceThreshold = .7 # points with less confidence than this are discarded from matching
-        distThreshold = 20 # if it's within distThreshold pixels it's a good match
-        triangulationConfidenceThreshold = .7 # points with less confidence than this are discarded from triangulation
-
-
-        for otherImage in range(numberOfCameras):
-            if otherImage == initialImage:
-                continue
-        
-            fundMatrixB = GetFundamentalMatrix(cameraIntrinsics[initialImage],cameraExtrinsics[initialImage][:3,:3],cameraExtrinsics[initialImage][:3,3], cameraFromWorld[initialImage], cameraIntrinsics[otherImage],cameraExtrinsics[otherImage][:3,:3],cameraExtrinsics[otherImage][:3,3], cameraFromWorld[otherImage])
-            fundTransB = np.transpose(fundMatrixB)
-        
-
-            matchCounter = np.zeros((datums[otherImage].poseKeypoints.shape[0], datums[otherImage].poseKeypoints.shape[1])) # number of people in imageB x number of bodyparts in imageB
-
-            for bodypartID in range(datums[initialImage].poseKeypoints.shape[1]): # for all body parts
-                #bodypartID = 2
-                bodypartPixelA = np.array([datums[initialImage].poseKeypoints[initialPerson,bodypartID,0], datums[initialImage].poseKeypoints[initialPerson,bodypartID,1], 1])
-                print('checking body part ' + str(bodypartID))
-                if datums[initialImage].poseKeypoints[initialPerson,bodypartID,2] < confidenceThreshold:
-                    print('not confidence enough for bodypart ' + str(bodypartID))
-                    cv2.circle(imagesToProcess[initialImage], (int(bodypartPixelA[0]),int(bodypartPixelA[1])),3,(0,0,255),2)
-                    continue
-
-                color = (0,255,0)
-                cv2.circle(imagesToProcess[initialImage], (int(bodypartPixelA[0]),int(bodypartPixelA[1])),3,color,2)
-                lineInB = np.dot(fundTransB,bodypartPixelA)
-                DrawLineOnImage( imagesToProcess[otherImage], lineInB)
-        
-                print('There are ' + str(datums[otherImage].poseKeypoints.shape[0]) + ' people in image ' + str(otherImage))
-                for personIndex in range(datums[otherImage].poseKeypoints.shape[0]): # for each person in image b[initialPerson,point,0] # TODO: order of nesting should change to avoid cache misses (for each person for each body part
-            
-                    #DrawLineOnImage( imagesToProcess[i], lineInB )
-        
-                    #DrawLineOnImage( imagesToProcess[initialImage], lineInA)
-                    #DrawLineOnImage( imagesToProcess[imgIDB], lineInB)
-                    #DrawLineOnImage( imagesToProcess[imgIDD], lineInD)
-                    if datums[otherImage].poseKeypoints[personIndex,bodypartID,2] < confidenceThreshold:
-                        print('not confident enough (' + str(datums[otherImage].poseKeypoints[personIndex,bodypartID,2]) + ') for person ' + str(personIndex))
-                        #cv2.circle(imagesToProcess[otherImage], (int(bodypartPixelB[0]),int(bodypartPixelB[1])),3,(0,0,255),2)
+                for bodypartID in range( datums[initialImage].poseKeypoints.shape[1] ): # for every body part
+                    bodypartA = datums[initialImage].poseKeypoints[initialPerson,bodypartID]
+                    bodypartB = datums[randomImage].poseKeypoints[randomPerson,bodypartID]
+                    if bodypartA[2] < confidenceThreshold or bodypartB[2] < confidenceThreshold:
                         continue
-
-                    bodypartPixelB = np.array([datums[otherImage].poseKeypoints[personIndex,bodypartID,0], datums[otherImage].poseKeypoints[personIndex,bodypartID,1], 1])
-                    dist = getPoint2LineDistance(bodypartPixelB,lineInB)
-                    if dist < distThreshold:
-                        print("match at " + str(personIndex))
-                        matchCounter[personIndex,bodypartID] += 1
-                    print("person " + str(personIndex) + ", dist " + str(dist))
-                    color = (255 * np.clip((dist/50),0,1), 255 * np.clip((1 - dist/50),0,1), 255 * np.clip((dist/50),0,1))
-                    cv2.circle(imagesToProcess[otherImage], (int(bodypartPixelB[0]),int(bodypartPixelB[1])),3,color,2)
+                    pixelA = ( bodypartA[0], bodypartA[1], 1 )
+                    pixelB = ( bodypartB[0], bodypartB[1], 1 )
+                    X = Triangulate2Points( cameraExtrinsics, cameraIntrinsics, cameraFromWorld, initialImage, randomImage, pixelA, pixelB )
                     
-                    #cv2.namedWindow('B', cv2.WINDOW_NORMAL)
-                    #cv2.imshow('B',imagesToProcess[otherImage])
-                    #cv2.resizeWindow('B', imagesToProcess[otherImage].shape[1]//2, imagesToProcess[otherImage].shape[0]//2)
-                    #cv2.waitKey();
+                    imagesLeft = np.array(candidateImages)
+                    imagesLeft[randomImage] = False # don't include the random image in the reprojection
 
-            matchesPerPerson = np.sum(matchCounter,axis = 1)
-            matchingPersonIndex = np.argmax(matchesPerPerson)
-            print('The best match in image ' + str(otherImage) + ' is person ' + str(matchingPersonIndex) + ' with ' + str(matchesPerPerson[matchingPersonIndex]) + ' matches.') # Preson B was ' + str(personB))
-            
-            #datumA = datums[initialImage].poseKeypoints[initialPerson]
-            datumB = datums[otherImage].poseKeypoints[matchingPersonIndex]
+                    for i in np.where(imagesLeft == True)[0]: # in every other image
+                        pix = np.dot(cameraProjs[i], np.array([X[0],X[1],X[2],1]))
+                        pix /= pix[2]
 
-            belowMatchThreshold = matchesPerPerson[matchingPersonIndex] < matchThreshold
-            sortedMatchesPerPerson = matchesPerPerson[np.argsort(matchesPerPerson)]
-            matchRatio = sortedMatchesPerPerson[-2]/sortedMatchesPerPerson[-1]
-            tooSimilarMatches = matchRatio > matchRatioThreshold
+                        for p in np.where( candidatesInImages[i] == True )[0]: # for every person remaining in the image
+                            if datums[i].poseKeypoints[p,bodypartID,2] < confidenceThreshold:
+                                continue
+                            otherpix = ( datums[i].poseKeypoints[p,bodypartID,0], datums[i].poseKeypoints[p,bodypartID,1], 1) 
+                            distance = np.linalg.norm( otherpix - pix )
+                            if distance < ransacDistanceThreshold:
+                                inliers += 1
 
-            for i, pointB in zip(range(datumB.shape[0]), datumB):
-                #if i == 4 or i == 3:
-                #cv2.circle(imagesToProcess[initialImage], (int(pointA[0]),int(pointA[1])),4,(255,255,0),4)
-                
-                if belowMatchThreshold or tooSimilarMatches:
-                    cv2.circle(imagesToProcess[otherImage], (int(pointB[0]),int(pointB[1])),4,(0,0,255),4)
-                elif  pointB[2] < confidenceThreshold:
-                    cv2.circle(imagesToProcess[otherImage], (int(pointB[0]),int(pointB[1])),4,(0,255,255),4)
-                else:
-                    cv2.circle(imagesToProcess[otherImage], (int(pointB[0]),int(pointB[1])),4,(255,255,0),4)
+                if inliers > bestInliers:
+                    bestInliers = inliers
+                    bestPerson = randomPerson
+                    bestImage = randomImage
+
+
+                    
+            color = (0,255,0)
+            for bodypartID in range( datums[initialImage].poseKeypoints.shape[1] ):
+                bodypartPixelA = np.array([datums[initialImage].poseKeypoints[initialPerson,bodypartID,0], datums[initialImage].poseKeypoints[initialPerson,bodypartID,1], 1])
+                bodypartPixelB = np.array([datums[bestImage].poseKeypoints[bestPerson,bodypartID,0], datums[bestImage].poseKeypoints[bestPerson,bodypartID,1], 1])
+                cv2.circle(imagesToProcess[initialImage], (int(bodypartPixelA[0]),int(bodypartPixelA[1])),3,color,2)
+                cv2.circle(imagesToProcess[bestImage], (int(bodypartPixelB[0]),int(bodypartPixelB[1])),3,color,2)
+
+            cv2.namedWindow('Initial Image', cv2.WINDOW_NORMAL)
+            cv2.imshow('Initial Image',imagesToProcess[initialImage])
+            cv2.resizeWindow('Initial Image', imagesToProcess[initialImage].shape[1]//2, imagesToProcess[initialImage].shape[0]//2)
 
             cv2.namedWindow('B', cv2.WINDOW_NORMAL)
-            cv2.imshow('B',imagesToProcess[otherImage])
-            cv2.resizeWindow('B', imagesToProcess[otherImage].shape[1]//2, imagesToProcess[otherImage].shape[0]//2)
-            cv2.waitKey();
+            cv2.imshow('B',imagesToProcess[bestImage])
+            cv2.resizeWindow('B', imagesToProcess[bestImage].shape[1]//2, imagesToProcess[bestImage].shape[0]//2)
+            cv2.waitKey()
 
 
-            if belowMatchThreshold or tooSimilarMatches:
-                continue
-            else:
-                keyPointsInEachImage[:,otherImage,:] = datums[otherImage].poseKeypoints[matchingPersonIndex]
+
+        else:
+            # Let's find and triangulate a person in another image given a person in the current image!
+            initialPerson = 0#personA
+            initialImage = 6#imgIDA
+
+
+            #keyPointsInEachImage = np.zeros((numberOfCameras, datums[initialImage].poseKeypoints.shape[1], 3)) #  bodyparts (25) x images (matches) x 3 points  # allows for indexing by x[i] means all pixels from the each image corresponding to bodypart i
+            keyPointsInEachImage = np.zeros((datums[initialImage].poseKeypoints.shape[1], numberOfCameras, 3)) #  bodyparts (25) x images (matches) x 3 points  # allows for indexing by x[i] means all pixels from the each image corresponding to bodypart i
+            keyPointsInEachImage[:,initialImage,:] = datums[initialImage].poseKeypoints[initialPerson]
+            matchThreshold = 8 # must have at least this many points correllated with the original person to work TODO: this is bad if the original person had less than 'matchThreshold' points... need some way to choose people without seeds
+            matchRatioThreshold = .6 # the percentage difference between the second best and first best must be less than this
+        
+            confidenceThreshold = .7 # points with less confidence than this are discarded from matching
+            distThreshold = 20 # if it's within distThreshold pixels it's a good match
+            triangulationConfidenceThreshold = .7 # points with less confidence than this are discarded from triangulation
+
+
+            for otherImage in range(numberOfCameras):
+                if otherImage == initialImage:
+                    continue
+        
+                fundMatrixB = GetFundamentalMatrix(cameraIntrinsics[initialImage],cameraExtrinsics[initialImage][:3,:3],cameraExtrinsics[initialImage][:3,3], cameraFromWorld[initialImage], cameraIntrinsics[otherImage],cameraExtrinsics[otherImage][:3,:3],cameraExtrinsics[otherImage][:3,3], cameraFromWorld[otherImage])
+                fundTransB = np.transpose(fundMatrixB)
+        
+
+                matchCounter = np.zeros((datums[otherImage].poseKeypoints.shape[0], datums[otherImage].poseKeypoints.shape[1])) # number of people in imageB x number of bodyparts in imageB
+
+                for bodypartID in range(datums[initialImage].poseKeypoints.shape[1]): # for all body parts
+                    #bodypartID = 2
+                    bodypartPixelA = np.array([datums[initialImage].poseKeypoints[initialPerson,bodypartID,0], datums[initialImage].poseKeypoints[initialPerson,bodypartID,1], 1])
+                    print('checking body part ' + str(bodypartID))
+                    if datums[initialImage].poseKeypoints[initialPerson,bodypartID,2] < confidenceThreshold:
+                        print('not confidence enough for bodypart ' + str(bodypartID))
+                        cv2.circle(imagesToProcess[initialImage], (int(bodypartPixelA[0]),int(bodypartPixelA[1])),3,(0,0,255),2)
+                        continue
+
+                    color = (0,255,0)
+                    cv2.circle(imagesToProcess[initialImage], (int(bodypartPixelA[0]),int(bodypartPixelA[1])),3,color,2)
+                    lineInB = np.dot(fundTransB,bodypartPixelA)
+                    DrawLineOnImage( imagesToProcess[otherImage], lineInB)
+        
+                    print('There are ' + str(datums[otherImage].poseKeypoints.shape[0]) + ' people in image ' + str(otherImage))
+                    for personIndex in range(datums[otherImage].poseKeypoints.shape[0]): # for each person in image b[initialPerson,point,0] # TODO: order of nesting should change to avoid cache misses (for each person for each body part
+            
+                        #DrawLineOnImage( imagesToProcess[i], lineInB )
+        
+                        #DrawLineOnImage( imagesToProcess[initialImage], lineInA)
+                        #DrawLineOnImage( imagesToProcess[imgIDB], lineInB)
+                        #DrawLineOnImage( imagesToProcess[imgIDD], lineInD)
+                        if datums[otherImage].poseKeypoints[personIndex,bodypartID,2] < confidenceThreshold:
+                            print('not confident enough (' + str(datums[otherImage].poseKeypoints[personIndex,bodypartID,2]) + ') for person ' + str(personIndex))
+                            #cv2.circle(imagesToProcess[otherImage], (int(bodypartPixelB[0]),int(bodypartPixelB[1])),3,(0,0,255),2)
+                            continue
+
+                        bodypartPixelB = np.array([datums[otherImage].poseKeypoints[personIndex,bodypartID,0], datums[otherImage].poseKeypoints[personIndex,bodypartID,1], 1])
+                        dist = getPoint2LineDistance(bodypartPixelB,lineInB)
+                        if dist < distThreshold:
+                            print("match at " + str(personIndex))
+                            matchCounter[personIndex,bodypartID] += 1
+                        print("person " + str(personIndex) + ", dist " + str(dist))
+                        color = (255 * np.clip((dist/50),0,1), 255 * np.clip((1 - dist/50),0,1), 255 * np.clip((dist/50),0,1))
+                        cv2.circle(imagesToProcess[otherImage], (int(bodypartPixelB[0]),int(bodypartPixelB[1])),3,color,2)
+                    
+                        #cv2.namedWindow('B', cv2.WINDOW_NORMAL)
+                        #cv2.imshow('B',imagesToProcess[otherImage])
+                        #cv2.resizeWindow('B', imagesToProcess[otherImage].shape[1]//2, imagesToProcess[otherImage].shape[0]//2)
+                        #cv2.waitKey();
+
+                matchesPerPerson = np.sum(matchCounter,axis = 1)
+                matchingPersonIndex = np.argmax(matchesPerPerson)
+                print('The best match in image ' + str(otherImage) + ' is person ' + str(matchingPersonIndex) + ' with ' + str(matchesPerPerson[matchingPersonIndex]) + ' matches.') # Preson B was ' + str(personB))
+            
+                #datumA = datums[initialImage].poseKeypoints[initialPerson]
+                datumB = datums[otherImage].poseKeypoints[matchingPersonIndex]
+
+                belowMatchThreshold = matchesPerPerson[matchingPersonIndex] < matchThreshold
+                sortedMatchesPerPerson = matchesPerPerson[np.argsort(matchesPerPerson)]
+                matchRatio = sortedMatchesPerPerson[-2]/sortedMatchesPerPerson[-1]
+                tooSimilarMatches = matchRatio > matchRatioThreshold
+
+                for i, pointB in zip(range(datumB.shape[0]), datumB):
+                    #if i == 4 or i == 3:
+                    #cv2.circle(imagesToProcess[initialImage], (int(pointA[0]),int(pointA[1])),4,(255,255,0),4)
+                
+                    if belowMatchThreshold or tooSimilarMatches:
+                        cv2.circle(imagesToProcess[otherImage], (int(pointB[0]),int(pointB[1])),4,(0,0,255),4)
+                    elif  pointB[2] < confidenceThreshold:
+                        cv2.circle(imagesToProcess[otherImage], (int(pointB[0]),int(pointB[1])),4,(0,255,255),4)
+                    else:
+                        cv2.circle(imagesToProcess[otherImage], (int(pointB[0]),int(pointB[1])),4,(255,255,0),4)
+
+                cv2.namedWindow('B', cv2.WINDOW_NORMAL)
+                cv2.imshow('B',imagesToProcess[otherImage])
+                cv2.resizeWindow('B', imagesToProcess[otherImage].shape[1]//2, imagesToProcess[otherImage].shape[0]//2)
+                cv2.waitKey();
+
+
+                if belowMatchThreshold or tooSimilarMatches:
+                    continue
+                else:
+                    keyPointsInEachImage[:,otherImage,:] = datums[otherImage].poseKeypoints[matchingPersonIndex]
 
 
         
-        # END FOR EACH IMAGE    
+            # END FOR EACH IMAGE    
 
 
                     
-        links = np.array([[0,1],[1,2],[2,3],[3,4],[1,5],[5,6],[6,7],[1,8],[8,9],[9,10],[10,11],[11,22],[22,23],[11,24],[8,12],[12,13],[13,14],[14,19],[19,20],[14,21],[0,15],[15,17],[0,16],[16,18]])
-        reconstructedPoints = np.zeros((datums[initialImage].poseKeypoints.shape[1],4))
+            links = np.array([[0,1],[1,2],[2,3],[3,4],[1,5],[5,6],[6,7],[1,8],[8,9],[9,10],[10,11],[11,22],[22,23],[11,24],[8,12],[12,13],[13,14],[14,19],[19,20],[14,21],[0,15],[15,17],[0,16],[16,18]])
+            reconstructedPoints = np.zeros((datums[initialImage].poseKeypoints.shape[1],4))
         
-        #relaxedConfidenceThreshold = .6
-        for i in range(reconstructedPoints.shape[0]):
-            print('Reconstructing body part ' + str(i) + ' with confidence better than ' + str(triangulationConfidenceThreshold) + '...')
-            reconstructedPoints[i] = TriangulatePoints(cameraProjs, keyPointsInEachImage[i], triangulationConfidenceThreshold)
-        print('done reconstructing')
-        
-
-        #links = np.array([[0,1],[1,2],[2,3],[3,4],[1,5],[5,6],[6,7],[1,8],[8,9],[9,10],[10,11],[11,22],[22,23],[11,24],[8,12],[12,13],[13,14],[14,19],[19,20],[14,21],[0,15],[15,17],[0,16],[16,18]])
-        #reconstructedPoints = np.zeros((datums[imgIDA].poseKeypoints.shape[1],4))
-        
-        #relaxedConfidenceThreshold = .6
-        #for i in range(reconstructedPoints.shape[0]):
-        #    confidenceA = datums[imgIDA].poseKeypoints[initialPerson,i,2]
-        #    confidenceB = datums[otherImage].poseKeypoints[matchingPersonIndex,i,2]
-        #    if confidenceA > relaxedConfidenceThreshold and confidenceB > relaxedConfidenceThreshold:
-        #        print('Reconstructing body part ' + str(i) + ' with confidence ' + str(confidenceA) + ' and ' + str(confidenceB) + '...')
-        #        t1 = np.zeros((2,3))
-        #        t2 = np.zeros((2,3))
-        #        t1[0] = np.array([datums[imgIDA].poseKeypoints[initialPerson,i,0], datums[imgIDA].poseKeypoints[initialPerson,i,1], 1])
-        #        t2[1] = np.array([datums[otherImage].poseKeypoints[matchingPersonIndex,i,0], datums[otherImage].poseKeypoints[matchingPersonIndex,i,1], 1])
-        #        reconstructedPoints[i] = TriangulatePoints(np.array([projectiveMatrixA,projectiveMatrixB]),t1,t2)
-        #    else:
-        #        reconstructedPoints[i,3] = -1 # no reconstruction
-        #print('done reconstructing')
+            #relaxedConfidenceThreshold = .6
+            for i in range(reconstructedPoints.shape[0]): # for each body part
+                print('Reconstructing body part ' + str(i) + ' with confidence better than ' + str(triangulationConfidenceThreshold) + '...')
+                #while True:
+                reconstructedPoints[i] = TriangulatePoints(cameraProjs, keyPointsInEachImage[i], triangulationConfidenceThreshold)
+            print('done reconstructing')
         
 
+            #links = np.array([[0,1],[1,2],[2,3],[3,4],[1,5],[5,6],[6,7],[1,8],[8,9],[9,10],[10,11],[11,22],[22,23],[11,24],[8,12],[12,13],[13,14],[14,19],[19,20],[14,21],[0,15],[15,17],[0,16],[16,18]])
+            #reconstructedPoints = np.zeros((datums[imgIDA].poseKeypoints.shape[1],4))
+        
+            #relaxedConfidenceThreshold = .6
+            #for i in range(reconstructedPoints.shape[0]):
+            #    confidenceA = datums[imgIDA].poseKeypoints[initialPerson,i,2]
+            #    confidenceB = datums[otherImage].poseKeypoints[matchingPersonIndex,i,2]
+            #    if confidenceA > relaxedConfidenceThreshold and confidenceB > relaxedConfidenceThreshold:
+            #        print('Reconstructing body part ' + str(i) + ' with confidence ' + str(confidenceA) + ' and ' + str(confidenceB) + '...')
+            #        t1 = np.zeros((2,3))
+            #        t2 = np.zeros((2,3))
+            #        t1[0] = np.array([datums[imgIDA].poseKeypoints[initialPerson,i,0], datums[imgIDA].poseKeypoints[initialPerson,i,1], 1])
+            #        t2[1] = np.array([datums[otherImage].poseKeypoints[matchingPersonIndex,i,0], datums[otherImage].poseKeypoints[matchingPersonIndex,i,1], 1])
+            #        reconstructedPoints[i] = TriangulatePoints(np.array([projectiveMatrixA,projectiveMatrixB]),t1,t2)
+            #    else:
+            #        reconstructedPoints[i,3] = -1 # no reconstruction
+            #print('done reconstructing')
+        
 
-        for i, point in zip(range(reconstructedPoints.shape[0]),reconstructedPoints):
-            if point[3] < 0:
-                continue
-            projectedPoint = np.dot(cameraProjs[initialImage],point)
-            projectedPoint = projectedPoint / projectedPoint[2]
-            color = (0,255,255)
-            cv2.circle(imagesToProcess[initialImage], (int(projectedPoint[0]),int(projectedPoint[1])),3,color,3)
 
-       #for i, point in zip(range(reconstructedPoints.shape[0]),reconstructedPoints):
-       #     projectedPointA = np.dot(projectiveMatrixA,point)
-       #     projectedPointA = projectedPointA / projectedPointA[2]
-       #     projectedPointB = np.dot(projectiveMatrixB,point)
-       #     projectedPointB = projectedPointB / projectedPointB[2]
-       #     color = (0,255,255)
-       #     if i == 4:
-       #         color = (0,0,255)
-       #     cv2.circle(imagesToProcess[initialImage], (int(projectedPointA[0]),int(projectedPointA[1])),3,color,3)
-       #     cv2.circle(imagesToProcess[otherImage], (int(projectedPointB[0]),int(projectedPointB[1])),3,color,3)
+            for i, point in zip(range(reconstructedPoints.shape[0]),reconstructedPoints):
+                if point[3] < 0:
+                    continue
+                projectedPoint = np.dot(cameraProjs[initialImage],point)
+                projectedPoint = projectedPoint / projectedPoint[2]
+                color = (0,255,255)
+                cv2.circle(imagesToProcess[initialImage], (int(projectedPoint[0]),int(projectedPoint[1])),3,color,3)
+
+           #for i, point in zip(range(reconstructedPoints.shape[0]),reconstructedPoints):
+           #     projectedPointA = np.dot(projectiveMatrixA,point)
+           #     projectedPointA = projectedPointA / projectedPointA[2]
+           #     projectedPointB = np.dot(projectiveMatrixB,point)
+           #     projectedPointB = projectedPointB / projectedPointB[2]
+           #     color = (0,255,255)
+           #     if i == 4:
+           #         color = (0,0,255)
+           #     cv2.circle(imagesToProcess[initialImage], (int(projectedPointA[0]),int(projectedPointA[1])),3,color,3)
+           #     cv2.circle(imagesToProcess[otherImage], (int(projectedPointB[0]),int(projectedPointB[1])),3,color,3)
 
         
-        cv2.namedWindow('Initial Image', cv2.WINDOW_NORMAL)
-        cv2.imshow('Initial Image',imagesToProcess[initialImage])
-        cv2.resizeWindow('Initial Image', imagesToProcess[initialImage].shape[1]//2, imagesToProcess[initialImage].shape[0]//2)
+            cv2.namedWindow('Initial Image', cv2.WINDOW_NORMAL)
+            cv2.imshow('Initial Image',imagesToProcess[initialImage])
+            cv2.resizeWindow('Initial Image', imagesToProcess[initialImage].shape[1]//2, imagesToProcess[initialImage].shape[0]//2)
 
-        #cv2.namedWindow('B', cv2.WINDOW_NORMAL)
-        #cv2.imshow('B',imagesToProcess[otherImage])
-        #cv2.resizeWindow('B', imagesToProcess[otherImage].shape[1]//2, imagesToProcess[otherImage].shape[0]//2)
-        cv2.waitKey();
+            #cv2.namedWindow('B', cv2.WINDOW_NORMAL)
+            #cv2.imshow('B',imagesToProcess[otherImage])
+            #cv2.resizeWindow('B', imagesToProcess[otherImage].shape[1]//2, imagesToProcess[otherImage].shape[0]//2)
+            cv2.waitKey();
         
-        fig = plt.figure()
-        ax = plt.axes(projection='3d')
-        #ax.set_zlim3d(0, 5)
-        #ax.set_ylim3d(0, 5)
-        #ax.set_xlim3d(-5, 0) 
-        #plt.gca().set_aspect('equal', adjustable='box')
-        for link in links:
-            x0 = reconstructedPoints[link[0]]
-            x1 = reconstructedPoints[link[1]]
-            if x0[3] < 0 or x1[3] < 0: # don't reconstruct invalid points
-                continue
-            ax.plot3D((x0[0],x1[0]),(x0[2],x1[2]),(-x0[1],-x1[1]), 'gray')
+            fig = plt.figure()
+            ax = plt.axes(projection='3d')
+            #ax.set_zlim3d(0, 5)
+            #ax.set_ylim3d(0, 5)
+            #ax.set_xlim3d(-5, 0) 
+            #plt.gca().set_aspect('equal', adjustable='box')
+            for link in links:
+                x0 = reconstructedPoints[link[0]]
+                x1 = reconstructedPoints[link[1]]
+                if x0[3] < 0 or x1[3] < 0: # don't reconstruct invalid points
+                    continue
+                ax.plot3D((x0[0],x1[0]),(x0[2],x1[2]),(-x0[1],-x1[1]), 'gray')
 
-        reconstructedPoints = reconstructedPoints[reconstructedPoints[:, 3] != -1]
-        ax.scatter(reconstructedPoints[:,0],reconstructedPoints[:,2],-reconstructedPoints[:,1], cmap= 'Greens')
-        axisEqual3D(ax)
-        plt.show()
+            reconstructedPoints = reconstructedPoints[reconstructedPoints[:, 3] != -1]
+            ax.scatter(reconstructedPoints[:,0],reconstructedPoints[:,2],-reconstructedPoints[:,1], cmap= 'Greens')
+            axisEqual3D(ax)
+            plt.show()
+        # END EPIPOLAR_MATCHING
 
         
-#        projectiveMatrix0 = np.dot(cameraIntrinsics[0],cameraExtrinsics[0])
-#        projectiveMatrix1 = np.dot(cameraIntrinsics[1],cameraExtrinsics[1])
-#        projectiveMatrix11 = np.dot(cameraIntrinsics[11],cameraExtrinsics[11])
-#        #pixels = [None] * (numberOfCameras-1)
-#
-#        for i in range(numberOfCameras-1):
-#            j = i+1
-#            worldCoord = np.array([cameraFromWorld[j][0], cameraFromWorld[j][1], cameraFromWorld[j][2], 1])
-#            pixel = np.dot(projectiveMatrix0, worldCoord)
-#            pixel = pixel/pixel[2]
-#            print('camera: ' + str(j) + ' with pixel ' + str(pixel))
-#            color = (0,0,255)
-#            #pixels[i] = pixel
-#            cv2.circle(imagesToProcess[0], (int(pixel[0]),int(pixel[1])),3,color,2)
-#
-#
-#        for i in range(numberOfCameras):
-#            j = i
-#            if i == 1:
-#                continue
-#            worldCoord = np.array([cameraFromWorld[j][0], cameraFromWorld[j][1], cameraFromWorld[j][2], 1])
-#            pixel = np.dot(projectiveMatrix1, worldCoord)
-#            pixel = pixel/pixel[2]
-#            print('camera: ' + str(j) + ' with pixel ' + str(pixel))
-#            color = (0,0,255)
-#            #pixels[i] = pixel
-#            cv2.circle(imagesToProcess[1], (int(pixel[0]),int(pixel[1])),3,color,2)
-#
-#        for i in range(numberOfCameras):
-#            j = i
-#            if i == 11:
-#                continue
-#            worldCoord = np.array([cameraFromWorld[j][0], cameraFromWorld[j][1], cameraFromWorld[j][2], 1])
-#            pixel = np.dot(projectiveMatrix11, worldCoord)
-#            pixel = pixel/pixel[2]
-#            print('camera: ' + str(j) + ' with pixel ' + str(pixel))
-#            color = (0,0,255)
-#            #pixels[i] = pixel
-#            cv2.circle(imagesToProcess[11], (int(pixel[0]),int(pixel[1])),3,color,2)
-#
-#        #projectiveMatrix11 = np.dot(cameraIntrinsics[11],cameraExtrinsics[11])
-#
-#        #worldCoord11 = np.array([cameraExtrinsics[10][0,3], cameraExtrinsics[10][1,3], cameraExtrinsics[10][2,3], 1])
-#
-#        #pixel = np.dot(projectiveMatrix0, worldCoord11)
-#        #pixel = pixel/pixel[2]
-#        #print(pixel)
-#        
-#        
-#        cv2.imshow('0', imagesToProcess[0])
-#        cv2.imshow('1', imagesToProcess[1])
-#        cv2.imshow('11', imagesToProcess[11])
-#
-#        cv2.imwrite('0.jpg', imagesToProcess[0])
-#        cv2.imwrite('1.jpg', imagesToProcess[1])
-#        cv2.imwrite('11.jpg', imagesToProcess[11])
-#
-#
+
 #        cv2.waitKey()
 #    #except Exception as e:
 #    #    print(e)
