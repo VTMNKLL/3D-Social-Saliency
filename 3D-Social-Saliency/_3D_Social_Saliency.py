@@ -590,7 +590,9 @@ if __name__ == '__main__':
                     bestImage = randomImage
 
 
-                    
+            print( 'bestInliers = ' + str( bestInliers ) )
+            print( 'bestPerson = ' + str( bestPerson ) )
+            print( 'bestImage = ' + str( bestImage ) )
             color = (0,255,0)
             for bodypartID in range( datums[initialImage].poseKeypoints.shape[1] ):
                 bodypartPixelA = np.array([datums[initialImage].poseKeypoints[initialPerson,bodypartID,0], datums[initialImage].poseKeypoints[initialPerson,bodypartID,1], 1])
