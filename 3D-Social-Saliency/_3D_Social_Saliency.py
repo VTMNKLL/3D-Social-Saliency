@@ -20,7 +20,8 @@ openPoseBinDirectory = openPoseBuildDirectory + '\\bin'
 openPoseModelsLocation = openPoseDirectory + '\\models\\'
 undistortedImagesDirectory = 'E:\\AML\\Data\\boat_data\\boat_1fps_200s'
 imageSet0000 = undistortedImagesDirectory + '\\00012000'
-frameNumber = '\\00012000'
+frameNo = '00012000'
+frameNumber = '\\'+frameNo
 imagePrefix = '\\image\\image'
 numberofDigits = 7
 imageSuffix = '.jpg'
@@ -32,7 +33,7 @@ cameraExtrinsicsFileLocation = 'E:\\AML\\Data\\boat_data\\boat_1fps_200s\\calibr
 
 calibrationDirectory = undistortedImagesDirectory + '\\\calibration'
 
-globalAtHome = False
+globalAtHome = True
 EPIPOLAR_MATCHING = False
 def HomeComputer(home):
     if (home):
@@ -270,7 +271,10 @@ def TriangulatePoints(P, p, confidenceThreshold = .7):
     return X
 
 def Triangulate2Points( Ex, In, Cfw, imA, imB, pA, pB, confidenceThreshold = .7 ):
-     # geometric method:
+    
+    if pA[2] < confidenceThreshold or pB[2] < confidenceThreshold:
+        return np.array([0,0,0,-1])
+    # geometric method:
     R1inv = np.transpose(getR(Ex[imA]))
     R2inv = np.transpose(getR(Ex[imB]))
     K1inv = np.linalg.inv(In[imA])
@@ -286,7 +290,7 @@ def Triangulate2Points( Ex, In, Cfw, imA, imB, pA, pB, confidenceThreshold = .7 
     X1world = distance[0] * ray1 + Cfw[imgIDA]
     X2world = distance[1] * ray2 + Cfw[imgIDB]
     XAvgWorld = X1world + ( ( X2world - X1world ) * .5 )
-    return XAvgWorld
+    return np.array([XAvgWorld[0],XAvgWorld[1],XAvgWorld[2],1])
 
 def getPoint2LineDistance( point, line ):
         pixel = (point[0],point[1],1)
@@ -527,7 +531,7 @@ if __name__ == '__main__':
         if not EPIPOLAR_MATCHING:
             print('RANSAC METHOD')
 
-            initialPerson = 0#personA
+            initialPerson = 3#personA
             initialImage = imgIDA
 
             candidatesInImages = [None] * numberOfCameras # holds logical arrays for each camera where a True/1 represents a person is still a candidate and False/0 means they have been eliminated (either associating it with another person or by removing them entirely)
@@ -600,16 +604,75 @@ if __name__ == '__main__':
                 cv2.circle(imagesToProcess[initialImage], (int(bodypartPixelA[0]),int(bodypartPixelA[1])),3,color,2)
                 cv2.circle(imagesToProcess[bestImage], (int(bodypartPixelB[0]),int(bodypartPixelB[1])),3,color,2)
 
+
+
+            
+            
+            links = np.array([[0,1],[1,2],[2,3],[3,4],[1,5],[5,6],[6,7],[1,8],[8,9],[9,10],[10,11],[11,22],[22,23],[11,24],[8,12],[12,13],[13,14],[14,19],[19,20],[14,21],[0,15],[15,17],[0,16],[16,18]])
+            reconstructedPoints = np.zeros((datums[initialImage].poseKeypoints.shape[1],4))
+            print(reconstructedPoints.shape)
+            #relaxedConfidenceThreshold = .6
+            for i in range(reconstructedPoints.shape[0]): # for each body part
+                print('Reconstructing body part ' + str(i) + ' with confidence better than ' + str(confidenceThreshold) + '...')
+                #while True:
+                #reconstructedPoints[i] = TriangulatePoints(cameraProjs, keyPointsInEachImage[i], triangulationConfidenceThreshold)
+                #reconstructedPoints[i] = Triangulate2Points(cameraExtrinsics,cameraIntrinsics,cameraFromWorld,initialImage,bestImage,datums[initialImage].poseKeypoints[initialPerson,i],datums[bestImage].poseKeypoints[bestPerson,i],confidenceThreshold)
+                point1 = datums[initialImage].poseKeypoints[initialPerson,i]
+                point2 = datums[bestImage].poseKeypoints[bestPerson,i]
+                pointsTMP = np.array([ point1,  point2 ])
+                reconstructedPoints[i] = TriangulatePoints([cameraProjs[initialImage],cameraProjs[bestImage]], pointsTMP, confidenceThreshold)
+
+            print('done reconstructing')
+
+
+            for i, point in zip(range(reconstructedPoints.shape[0]),reconstructedPoints):
+                if point[3] < 0:
+                    continue
+                projectedPoint = np.dot(cameraProjs[initialImage],np.array([point[0],point[1],point[2],1]))
+                projectedPoint = projectedPoint / projectedPoint[2]
+                projectedPoint2 = np.dot(cameraProjs[bestImage],np.array([point[0],point[1],point[2],1]))
+                projectedPoint2 = projectedPoint2 / projectedPoint2[2]
+                color = (0,255,255)
+                cv2.circle(imagesToProcess[initialImage], (int(projectedPoint[0]),int(projectedPoint[1])),3,color,3)
+                cv2.circle(imagesToProcess[bestImage], (int(projectedPoint2[0]),int(projectedPoint2[1])),3,color,3)
+            
+            
             cv2.namedWindow('Initial Image', cv2.WINDOW_NORMAL)
             cv2.imshow('Initial Image',imagesToProcess[initialImage])
             cv2.resizeWindow('Initial Image', imagesToProcess[initialImage].shape[1]//2, imagesToProcess[initialImage].shape[0]//2)
 
-            cv2.namedWindow('B', cv2.WINDOW_NORMAL)
-            cv2.imshow('B',imagesToProcess[bestImage])
-            cv2.resizeWindow('B', imagesToProcess[bestImage].shape[1]//2, imagesToProcess[bestImage].shape[0]//2)
+            cv2.namedWindow('BestImage', cv2.WINDOW_NORMAL)
+            cv2.imshow('BestImage',imagesToProcess[bestImage])
+            cv2.resizeWindow('BestImage', imagesToProcess[bestImage].shape[1]//2, imagesToProcess[bestImage].shape[0]//2)
             cv2.waitKey()
+            
+            
+            fig = plt.figure()
+            ax = plt.axes(projection='3d')
+            #ax.set_zlim3d(0, 5)
+            #ax.set_ylim3d(0, 5)
+            #ax.set_xlim3d(-5, 0) 
+            #plt.gca().set_aspect('equal', adjustable='box')
+            for link in links:
+                x0 = reconstructedPoints[link[0]]
+                x1 = reconstructedPoints[link[1]]
+                if x0[3] < 0 or x1[3] < 0: # don't reconstruct invalid points
+                    continue
+                ax.plot3D((x0[0],x1[0]),(x0[2],x1[2]),(-x0[1],-x1[1]), 'gray')
 
 
+
+            print('saving matrix [ ' + 'person' + str(initialPerson) + '_frames_' + str(initialImage) + 'and' + str(bestImage) + '_set' + frameNo + '.npy ] before destroying...')
+            np.savetxt('person' + str(initialPerson) + '_frames_' + str(initialImage) + 'and' + str(bestImage) + '_set' + frameNo + '.npy', reconstructedPoints)
+            print('done saving!')
+
+
+            reconstructedPoints = reconstructedPoints[reconstructedPoints[:, 3] != -1]
+            ax.scatter(reconstructedPoints[:,0],reconstructedPoints[:,2],-reconstructedPoints[:,1], cmap= 'Greens')
+            axisEqual3D(ax)
+            plt.show()
+            
+            
 
         else:
             # Let's find and triangulate a person in another image given a person in the current image!
