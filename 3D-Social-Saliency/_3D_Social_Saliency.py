@@ -33,8 +33,10 @@ cameraExtrinsicsFileLocation = 'E:\\AML\\Data\\boat_data\\boat_1fps_200s\\calibr
 
 calibrationDirectory = undistortedImagesDirectory + '\\\calibration'
 
-globalAtHome = True
+globalAtHome = False
 EPIPOLAR_MATCHING = False
+
+
 def HomeComputer(home):
     if (home):
         undistortedImagesDirectory = 'C:\\Users\\Zach\\source\\repos\\ComputerVision\\3D Human Reconstruction'
@@ -57,6 +59,10 @@ def skew(x):
                      [x[2], 0, -x[0]],
                      [-x[1], x[0], 0]])
 
+def skewPix(x):
+    return np.array([[0, -1, x[1]],
+                     [1, 0, -x[0]],
+                     [-x[1], x[0], 0]])
 
 def GetFundamentalMatrix(K1, R1, t1, c1, K2, R2, t2, c2):
     #K1it = np.transpose(np.linalg.inv(K1))
@@ -197,6 +203,31 @@ def DistanceBetweenTwoPoints (ptA, ptB) :
 # pick a random image
 def TwoPersonRANSAC(datums, intrinsics, extrinsics, cameraLocations):
     return
+
+def triangulation(P1, P2, pts1, pts2):
+    # TO DO
+    #pts3D = np.zeros((pts1.shape[0], 4))
+
+    if pts1[2] < .7 or pts2[2] < .7:
+        print('bad point')
+        return np.array([0,0,0,-1])
+
+    X = np.zeros(4)
+
+    A = np.zeros((6,4))
+
+    #for i in range(pts1.shape[0]):
+    A[:3,:] = np.dot(skewPix(pts1),P1)
+    A[3:,:] = np.dot(skewPix(pts2),P2)
+    u, s, vh = np.linalg.svd(A, full_matrices=True)
+    nullSpace = vh[-1,:]
+
+    #pts3D[i] = nullSpace / nullSpace[3]
+    X = nullSpace / nullSpace[3]
+
+    # return pts3D
+    return np.array([X[0],X[1],X[2],1])
+
 
 # Px is the projection matrix, px is the corresponding pixel coordinates of the same 3D point
 # px should be shape 1xNx3 (body part)x(correspondence in each image)x(x,y,confidence)
@@ -571,7 +602,8 @@ if __name__ == '__main__':
                         continue
                     pixelA = ( bodypartA[0], bodypartA[1], 1 )
                     pixelB = ( bodypartB[0], bodypartB[1], 1 )
-                    X = Triangulate2Points( cameraExtrinsics, cameraIntrinsics, cameraFromWorld, initialImage, randomImage, pixelA, pixelB )
+                    X = triangulation( cameraProjs[initialImage], cameraProjs[bestImage], pixelA, pixelB )
+                    #Triangulate2Points( cameraExtrinsics, cameraIntrinsics, cameraFromWorld, initialImage, randomImage, pixelA, pixelB )
                     
                     imagesLeft = np.array(candidateImages)
                     imagesLeft[randomImage] = False # don't include the random image in the reprojection
@@ -620,7 +652,7 @@ if __name__ == '__main__':
                 point1 = datums[initialImage].poseKeypoints[initialPerson,i]
                 point2 = datums[bestImage].poseKeypoints[bestPerson,i]
                 pointsTMP = np.array([ point1,  point2 ])
-                reconstructedPoints[i] = TriangulatePoints([cameraProjs[initialImage],cameraProjs[bestImage]], pointsTMP, confidenceThreshold)
+                reconstructedPoints[i] = triangulation(cameraProjs[initialImage],cameraProjs[bestImage],point1,point2)#TriangulatePoints([cameraProjs[initialImage],cameraProjs[bestImage]], pointsTMP, confidenceThreshold)
 
             print('done reconstructing')
 
@@ -632,9 +664,12 @@ if __name__ == '__main__':
                 projectedPoint = projectedPoint / projectedPoint[2]
                 projectedPoint2 = np.dot(cameraProjs[bestImage],np.array([point[0],point[1],point[2],1]))
                 projectedPoint2 = projectedPoint2 / projectedPoint2[2]
+                projectedPoint3 = np.dot(cameraProjs[7],np.array([point[0],point[1],point[2],1]))
+                projectedPoint3 = projectedPoint3 / projectedPoint3[2]
                 color = (0,255,255)
                 cv2.circle(imagesToProcess[initialImage], (int(projectedPoint[0]),int(projectedPoint[1])),3,color,3)
                 cv2.circle(imagesToProcess[bestImage], (int(projectedPoint2[0]),int(projectedPoint2[1])),3,color,3)
+                cv2.circle(imagesToProcess[7], (int(projectedPoint3[0]),int(projectedPoint3[1])),3,color,3)
             
             
             cv2.namedWindow('Initial Image', cv2.WINDOW_NORMAL)
@@ -644,6 +679,11 @@ if __name__ == '__main__':
             cv2.namedWindow('BestImage', cv2.WINDOW_NORMAL)
             cv2.imshow('BestImage',imagesToProcess[bestImage])
             cv2.resizeWindow('BestImage', imagesToProcess[bestImage].shape[1]//2, imagesToProcess[bestImage].shape[0]//2)
+            
+            
+            cv2.namedWindow('OtherImage', cv2.WINDOW_NORMAL)
+            cv2.imshow('OtherImage',imagesToProcess[7])
+            cv2.resizeWindow('OtherImage', imagesToProcess[7].shape[1]//2, imagesToProcess[7].shape[0]//2)
             cv2.waitKey()
             
             
