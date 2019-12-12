@@ -21,6 +21,7 @@ openPoseModelsLocation = openPoseDirectory + '\\models\\'
 undistortedImagesDirectory = 'E:\\AML\\Data\\boat_data\\boat_1fps_200s'
 imageSet0000 = undistortedImagesDirectory + '\\00012000'
 frameNo = '00012000'
+frameNo = '00017190'
 frameNumber = '\\'+frameNo
 imagePrefix = '\\image\\image'
 numberofDigits = 7
@@ -33,7 +34,7 @@ cameraExtrinsicsFileLocation = 'E:\\AML\\Data\\boat_data\\boat_1fps_200s\\calibr
 
 calibrationDirectory = undistortedImagesDirectory + '\\\calibration'
 
-globalAtHome = False
+globalAtHome = True
 EPIPOLAR_MATCHING = False
 
 
@@ -209,7 +210,7 @@ def triangulation(P1, P2, pts1, pts2):
     #pts3D = np.zeros((pts1.shape[0], 4))
 
     if pts1[2] < .7 or pts2[2] < .7:
-        print('bad point')
+        #print('bad point')
         return np.array([0,0,0,-1])
 
     X = np.zeros(4)
@@ -368,9 +369,10 @@ if __name__ == '__main__':
 
 
         if globalAtHome:
-            undistortedImagesDirectory = 'C:\\Users\\Zach\\source\\repos\\ComputerVision\\3D Human Reconstruction'
-            cameraIntrinsicsFileLocation = undistortedImagesDirectory + '\\intrinsic_z.txt'
-            cameraExtrinsicsFileLocation = undistortedImagesDirectory + '\\camera_z.txt'
+            undistortedImagesDirectory = 'H:\\boat_data\\boat_1fps_200s'
+            dataDirectory = 'C:\\Users\\Zach\\source\\repos\\ComputerVision\\3D Human Reconstruction'
+            cameraIntrinsicsFileLocation = dataDirectory + '\\intrinsic_z.txt'
+            cameraExtrinsicsFileLocation = dataDirectory + '\\camera_z.txt'
 
 
 
@@ -563,8 +565,27 @@ if __name__ == '__main__':
             
             print('RANSAC METHOD')
 
-            initialPerson = 3 # personA
-            initialImage = imgIDA
+            bestInliers = 0
+            bestPerson = -1
+            bestImage = -1
+            confidenceThreshold = .7
+            ransacDistanceThreshold = 30
+            matchThreshold = 4 #6
+
+
+            initialPerson = 4 # personA
+            initialImage = 6 #imgIDA
+
+            color = (0,255,0)
+            for bodypartID in range( datums[initialImage].poseKeypoints.shape[1] ):
+                bodypartPixelA = np.array([datums[initialImage].poseKeypoints[initialPerson,bodypartID,0], datums[initialImage].poseKeypoints[initialPerson,bodypartID,1], 1])
+                if bodypartPixelA[2] > confidenceThreshold:
+                    cv2.circle(imagesToProcess[initialImage], (int(bodypartPixelA[0]),int(bodypartPixelA[1])),3,color,2)
+
+            cv2.namedWindow('Initial Image', cv2.WINDOW_NORMAL)
+            cv2.imshow('Initial Image',imagesToProcess[initialImage])
+            cv2.resizeWindow('Initial Image', imagesToProcess[initialImage].shape[1]//2, imagesToProcess[initialImage].shape[0]//2)
+            cv2.waitKey()
 
             candidatesInImages = [None] * numberOfCameras # holds logical arrays for each camera where a True/1 represents a person is still a candidate and False/0 means they have been eliminated (either associating it with another person or by removing them entirely)
             for i in range(numberOfCameras):
@@ -582,12 +603,7 @@ if __name__ == '__main__':
             candidateImages[initialImage] = False # don't choose the original image for triangulation
             candidateImagesIdx = np.where( candidateImages == True )[0] # index buffer
 
-            bestInliers = 0
-            bestPerson = -1
-            bestImage = -1
-            confidenceThreshold = .7
-            ransacDistanceThreshold = 20
-            matchThreshold = 6
+            
 
             SKIP_RANSAC = True
 
@@ -635,6 +651,100 @@ if __name__ == '__main__':
                 bestInliers = 27
                 bestPerson = 0
                 bestImage = 3
+                initialPerson = 3 # personA
+                initialImage = imgIDA
+
+                bestInliers = 47
+                bestPerson = 1
+                bestImage = 3
+                initialPerson = 0
+                initialImage = imgIDA
+
+                bestInliers = 28
+                bestPerson = 2
+                bestImage = 6
+                initialPerson = 4
+                initialImage = imgIDA
+
+                #bestInliers = 48
+                #bestPerson = 3
+                #bestImage = 11
+                #initialPerson = 5 # personA
+                #initialImage = imgIDA
+
+                bestInliers = 42
+                bestPerson = 5
+                bestImage = 9
+                initialPerson = 6 # personA
+                initialImage = imgIDA
+
+
+                # -------------
+                #bestInliers = 21
+                #bestPerson = 8
+                #bestImage = 10
+                #initialPerson = 0 # personA
+                #initialImage = imgIDA
+
+                
+
+                
+                #standing stranger
+                bestInliers = 32
+                bestPerson = 1
+                bestImage = 3
+                initialPerson = 0 # personA
+                initialImage = 4
+
+                
+                
+                # guy in dark blue
+                bestInliers = 44
+                bestPerson = 0
+                bestImage = 2
+                initialPerson = 5 # personA
+                initialImage = 3 #imgIDA
+                
+                # middle lady in black
+                bestInliers = 57
+                bestPerson = 0
+                bestImage = 11
+                initialPerson = 6 # personA
+                initialImage = 4 #imgIDA
+
+                # person in gray
+                bestInliers = 53
+                bestPerson = 3
+                bestImage = 2
+                initialPerson = 5 # personA
+                initialImage = 4 #imgIDA
+                # better
+                bestInliers = 59
+                bestPerson = 1
+                bestImage = 1
+                initialPerson = 1 # personA
+                initialImage = 6 #imgIDA
+
+                #vince
+                bestInliers = 52
+                bestPerson = 1
+                bestImage = 4
+                initialPerson = 0 # personA
+                initialImage = 6 #imgIDA
+
+                # lady at boat end
+                bestInliers = 32
+                bestPerson = 5
+                bestImage = 7
+                initialPerson = 4 # personA
+                initialImage = 6 #imgIDA
+
+                # guy in blue
+                bestInliers = 56
+                bestPerson = 7
+                bestImage = 9
+                initialPerson = 3 # personA
+                initialImage = 4 #imgIDA
 
             print( 'bestInliers = ' + str( bestInliers ) )
             print( 'bestPerson = ' + str( bestPerson ) )
@@ -740,10 +850,16 @@ if __name__ == '__main__':
                 
                 #reconstructedPoints[i] = triangulation(cameraProjs[initialImage],cameraProjs[bestImage],point1,point2) # TriangulatePoints([cameraProjs[initialImage],cameraProjs[bestImage]], pointsTMP, )
 
-                goodKeyPoints = np.where( keyPointsInEachImage[i] > confidenceThreshold )[0] # only the good keypoints
+                goodKeyPoints = np.where( keyPointsInEachImage[i,:,2] > confidenceThreshold )[0] # only the good keypoints
                 if len(goodKeyPoints) < 3:
-                    print('Too few good keypoints for bodypart [' + str(i) + ']...')
-                    reconstructedPoints[i,3] = -1
+                    print('Too few good keypoints for RANSAC on bodypart [' + str(i) + ']...')
+                    if len(goodKeyPoints) < 2:
+                        print('Too few good keypoints for bodypart [' + str(i) + ']...')
+                        reconstructedPoints[i,3] = -1
+                    else:
+                        pixelA = keyPointsInEachImage[i,goodKeyPoints[0]]
+                        pixelB = keyPointsInEachImage[i,goodKeyPoints[1]]
+                        reconstructedPoints[i] = triangulation( cameraProjs[goodKeyPoints[0]], cameraProjs[goodKeyPoints[1]], pixelA, pixelB )
                     continue
 
 
@@ -755,11 +871,11 @@ if __name__ == '__main__':
                 
                 
 
-                for rr in range(100):
+                for rr in range(500):
                     # keyPointsInEachImage[i] # all the ith bodyparts
                     pointImageIndices = np.random.choice(goodKeyPoints, 2, replace=False)
                     pixelA = keyPointsInEachImage[i,pointImageIndices[0]]
-                    pixelA = keyPointsInEachImage[i,pointImageIndices[1]]
+                    pixelB = keyPointsInEachImage[i,pointImageIndices[1]]
                     X = triangulation( cameraProjs[pointImageIndices[0]], cameraProjs[pointImageIndices[1]], pixelA, pixelB )
 
                     #imageIndicies[points[0]] = False
@@ -796,27 +912,27 @@ if __name__ == '__main__':
                 projectedPoint = projectedPoint / projectedPoint[2]
                 projectedPoint2 = np.dot(cameraProjs[bestImage],np.array([point[0],point[1],point[2],1]))
                 projectedPoint2 = projectedPoint2 / projectedPoint2[2]
-                projectedPoint3 = np.dot(cameraProjs[7],np.array([point[0],point[1],point[2],1]))
-                projectedPoint3 = projectedPoint3 / projectedPoint3[2]
+                #projectedPoint3 = np.dot(cameraProjs[7],np.array([point[0],point[1],point[2],1]))
+                #projectedPoint3 = projectedPoint3 / projectedPoint3[2]
                 color = (0,255,255)
                 cv2.circle(imagesToProcess[initialImage], (int(projectedPoint[0]),int(projectedPoint[1])),3,color,3)
                 cv2.circle(imagesToProcess[bestImage], (int(projectedPoint2[0]),int(projectedPoint2[1])),3,color,3)
-                cv2.circle(imagesToProcess[7], (int(projectedPoint3[0]),int(projectedPoint3[1])),3,color,3)
+                #cv2.circle(imagesToProcess[7], (int(projectedPoint3[0]),int(projectedPoint3[1])),3,color,3)
             
             
-            cv2.namedWindow('Initial Image', cv2.WINDOW_NORMAL)
-            cv2.imshow('Initial Image',imagesToProcess[initialImage])
-            cv2.resizeWindow('Initial Image', imagesToProcess[initialImage].shape[1]//2, imagesToProcess[initialImage].shape[0]//2)
+            ##cv2.namedWindow('Initial Image', cv2.WINDOW_NORMAL)
+            ##cv2.imshow('Initial Image',imagesToProcess[initialImage])
+            ##cv2.resizeWindow('Initial Image', imagesToProcess[initialImage].shape[1]//2, imagesToProcess[initialImage].shape[0]//2)
 
-            cv2.namedWindow('BestImage', cv2.WINDOW_NORMAL)
-            cv2.imshow('BestImage',imagesToProcess[bestImage])
-            cv2.resizeWindow('BestImage', imagesToProcess[bestImage].shape[1]//2, imagesToProcess[bestImage].shape[0]//2)
+            ##cv2.namedWindow('BestImage', cv2.WINDOW_NORMAL)
+            ##cv2.imshow('BestImage',imagesToProcess[bestImage])
+            ##cv2.resizeWindow('BestImage', imagesToProcess[bestImage].shape[1]//2, imagesToProcess[bestImage].shape[0]//2)
             
             
-            cv2.namedWindow('OtherImage', cv2.WINDOW_NORMAL)
-            cv2.imshow('OtherImage',imagesToProcess[7])
-            cv2.resizeWindow('OtherImage', imagesToProcess[7].shape[1]//2, imagesToProcess[7].shape[0]//2)
-            cv2.waitKey()
+            ### cv2.namedWindow('OtherImage', cv2.WINDOW_NORMAL)
+            ### cv2.imshow('OtherImage',imagesToProcess[7])
+            ### cv2.resizeWindow('OtherImage', imagesToProcess[7].shape[1]//2, imagesToProcess[7].shape[0]//2)
+            ##cv2.waitKey()
             
             
             fig = plt.figure()
