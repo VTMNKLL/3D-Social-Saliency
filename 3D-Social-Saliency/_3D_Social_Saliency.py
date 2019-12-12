@@ -54,6 +54,9 @@ def axisEqual3D(ax):
     for ctr, dim in zip(centers, 'xyz'):
         getattr(ax, 'set_{}lim'.format(dim))(ctr - r, ctr + r)
 
+def mapRange(x, in_min, in_max, out_min, out_max):
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+
 
 def skew(x):
     return np.array([[0, -x[2], x[1]],
@@ -559,9 +562,200 @@ if __name__ == '__main__':
 
 
 
+        RECONSTRUCT_FROM_DISK = True
 
 
-        if not EPIPOLAR_MATCHING:
+        if RECONSTRUCT_FROM_DISK:
+            
+                #vince
+                vince = np.loadtxt('person0_frames_6and4_set00017190.npy')
+             
+                #standing stranger
+                standing_stranger = np.loadtxt('person0_frames_4and3_set00017190.npy')
+                
+                # guy in dark blue
+                dark_blue = np.loadtxt('person5_frames_3and2_set00017190.npy')
+                
+                # middle lady in black
+                lady_in_black = np.loadtxt('person6_frames_4and11_set00017190.npy')
+
+                # person in gray
+                gray_person = np.loadtxt('person1_frames_6and1_set00017190.npy')
+
+                # lady at boat end
+                lady_at_end = np.loadtxt('person4_frames_6and7_set00017190.npy')
+
+                # guy in blue
+                blue_guy = np.loadtxt('person3_frames_4and9_set00017190.npy')
+
+                names2idx = {'vince':0, 'standing_stranger':1, 'dark_blue':2, 'lady_in_black':3, 'gray_person':4, 'lady_at_end':5, 'blue_guy':6}
+                idx2names = {0:'vince', 1:'standing_stranger', 2:'dark_blue', 3:'lady_in_black', 4:'gray_person', 5:'lady_at_end', 6:'blue_guy'}
+
+                skeletons3D = [vince, standing_stranger, dark_blue, lady_in_black, gray_person, lady_at_end, blue_guy]
+
+                viewDirections = [np.zeros(4)] * len(skeletons3D)
+                handIntensitiesGaze = np.ones((len(skeletons3D),2)) * -1 #[np.ones(2)] * len(skeletons3D)
+                handIntensitiesMean = np.ones((len(skeletons3D),2)) * -1
+                
+                links = np.array([[0,1],[1,2],[2,3],[3,4],[1,5],[5,6],[6,7],[1,8],[8,9],[9,10],[10,11],[11,22],[22,23],[11,24],[8,12],[12,13],[13,14],[14,19],[19,20],[14,21],[0,15],[15,17],[0,16],[16,18]])
+                for i, skeleton in zip(range(len(skeletons3D)), skeletons3D):
+                    spine = links[7]
+                    neck = links[0]
+                    spineVector = skeleton[spine[0]] - skeleton[spine[1]]
+                    neckVector = skeleton[neck[0]] - skeleton[neck[1]]
+
+                    neckProj = ((spineVector @ neckVector) / (spineVector @ spineVector)) * spineVector
+                    viewDirections[i] = neckVector - neckProj
+
+                mean = np.zeros(3)
+                counter = 0
+                for skeleton in skeletons3D:
+                    ones = np.where(skeleton[:,3] == 1)[0]
+                    counter += len(ones)
+                    print(counter)
+                    sum = np.sum(skeleton,axis=0)
+                    mean += sum[:3]
+                mean /= counter
+
+
+                # Get hand intensities for mean paradigm
+                largest = 0
+                smallest = np.inf
+                for i in range(len(skeletons3D)):
+                    isLeft = skeletons3D[i][7,3] > 0
+                    isRight = skeletons3D[i][4,3] > 0
+                    if not isLeft and not isRight:
+                        continue
+                    if isLeft:
+                        diff = np.linalg.norm(skeletons3D[i][7,:3] - mean)
+                        diff *= diff
+                        handIntensitiesMean[i,0] = diff
+                        smallest = min(smallest,diff)
+                        largest = max(largest,diff)
+                    if isRight:
+                        diff = np.linalg.norm(skeletons3D[i][4,:3] - mean)
+                        diff *= diff
+                        handIntensitiesMean[i,1] = diff
+                        smallest = min(smallest,diff)
+                        largest = max(largest,diff)
+
+                print('smallest: ' + str(smallest) + ', largest: ' + str(largest))
+                for i in range(len(skeletons3D)):
+                    #TODO : Preserve -1 value
+                    handIntensitiesMean[i,0] = mapRange(handIntensitiesMean[i,0],smallest,largest,1,.1)
+                    handIntensitiesMean[i,1] = mapRange(handIntensitiesMean[i,1],smallest,largest,1,.1)
+                    print(str(handIntensitiesMean[i,0]) + ', ' + str(handIntensitiesMean[i,1]))
+
+
+
+
+
+
+                dfar = 4
+                dnear = 0
+                maxtheta = 19*math.pi/30 # 114 degrees
+
+                # get hand intensities for gaze paradigm
+                largest = 0
+                smallest = np.inf
+                for i in range(len(skeletons3D)):
+                    isLeft = skeletons3D[i][7,3] > 0
+                    isRight = skeletons3D[i][4,3] > 0
+                    if not isLeft and not isRight:
+                        continue
+
+                    for s in range(len(viewDirections)):
+                        if isLeft:
+                            leftDisplacement = skeletons3D[i][7,:3] - skeletons3D[s][0,:3]
+                            angle = math.acos( (leftDisplacement @ viewDirections[s][:3]) / (np.linalg.norm(leftDisplacement) * np.linalg.norm(viewDirections[s][:3])) )
+                            dist = np.linalg.norm(leftDisplacement)
+                            if dist > dfar:
+                                dist = dfar
+                            dist = mapRange(dist,0,dfar,1,0)
+                            angle = mapRange(angle,0,maxtheta,1,0)
+                            if angle < 0:
+                                angle = 0
+                            saliency = dist * angle
+                            handIntensitiesGaze[i,0] += saliency
+
+                        if isRight:
+                            rightDisplacement = skeletons3D[i][4,:3] - skeletons3D[s][0,:3]
+                            angle = math.acos( (rightDisplacement @ viewDirections[s][:3]) / (np.linalg.norm(rightDisplacement) * np.linalg.norm(viewDirections[s][:3])) )
+                            dist = np.linalg.norm(rightDisplacement)
+                            if rightDisplacement @ viewDirections[s][:3] < 0:
+                                dist = dfar
+                            if dist > dfar:
+                                dist = dfar
+                            dist = mapRange(dist,0,dfar,1,0)
+                            angle = mapRange(angle,0,maxtheta,1,0)
+                            if angle < 0:
+                                angle = 0
+
+                            saliency = dist * angle
+                            handIntensitiesGaze[i,1] += saliency
+
+                        smallest = min(smallest,handIntensitiesGaze[i,0])
+                        largest = max(largest,handIntensitiesGaze[i,0])
+                        smallest = min(smallest,handIntensitiesGaze[i,1])
+                        largest = max(largest,handIntensitiesGaze[i,1])
+
+                print('smallest: ' + str(smallest) + ', largest: ' + str(largest))
+                for i in range(len(skeletons3D)):
+                    #TODO : Preserve -1 value
+                    handIntensitiesGaze[i,0] = mapRange(handIntensitiesGaze[i,0],smallest,largest,.1,1)
+                    handIntensitiesGaze[i,1] = mapRange(handIntensitiesGaze[i,1],smallest,largest,.1,1)
+                    print(str(handIntensitiesMean[i,0]) + ', ' + str(handIntensitiesMean[i,1]))
+
+
+                VISUALIZE_GAZE = True
+                VISUALIZE_MEAN_HANDS = False
+                VISUALIZE_GAZE_HANDS = True
+                RAINBOW_COLORS = False
+                skeleton_colors = 'black'
+                if RAINBOW_COLORS:
+                    skeleton_colors = None
+
+                fig = plt.figure()
+                ax = plt.axes(projection='3d')
+                for i, skeleton in zip(range(len(skeletons3D)), skeletons3D):
+                    for link in links:
+                        x0 = skeleton[link[0]]
+                        x1 = skeleton[link[1]]
+                        if x0[3] < 0 or x1[3] < 0: # don't reconstruct invalid points
+                            continue
+                        ax.plot3D((x0[0],x1[0]),(x0[2],x1[2]),(-x0[1],-x1[1]), 'gray')
+
+                    if VISUALIZE_GAZE:
+                        displacement = skeleton[0] + viewDirections[i] * 1.5 / np.linalg.norm(viewDirections[i])
+                        ax.plot3D((skeleton[0,0],displacement[0]),(skeleton[0,2],displacement[2]),(-skeleton[0,1],-displacement[1]), 'blue')
+
+                    if VISUALIZE_MEAN_HANDS:
+                        if skeleton[7,3] > 0:
+                            ax.scatter(skeleton[7,0],skeleton[7,2],-skeleton[7,1], s = 100, c='red', alpha = handIntensitiesMean[i,0])
+                        if skeleton[4,3] > 0:
+                            ax.scatter(skeleton[4,0],skeleton[4,2],-skeleton[4,1], s = 100, c='red', alpha = handIntensitiesMean[i,1])
+
+                    if VISUALIZE_GAZE_HANDS:
+                        if skeleton[7,3] > 0:
+                            ax.scatter(skeleton[7,0],skeleton[7,2],-skeleton[7,1], s = 100, c='red', alpha = handIntensitiesGaze[i,0])
+                        if skeleton[4,3] > 0:
+                            ax.scatter(skeleton[4,0],skeleton[4,2],-skeleton[4,1], s = 100, c='red', alpha = handIntensitiesGaze[i,1])
+
+                    skeleton = skeleton[skeleton[:, 3] != -1]
+                    ax.scatter(skeleton[:,0],skeleton[:,2],-skeleton[:,1], c= skeleton_colors, alpha = 1) #cmap= 'Greens')
+
+                    
+                if VISUALIZE_MEAN_HANDS:
+                    ax.scatter(mean[0],mean[2],-mean[1], s = 100, c='blue', marker='^')
+
+                axisEqual3D(ax)
+                plt.show()
+
+
+
+
+
+        elif not EPIPOLAR_MATCHING:
             
             print('RANSAC METHOD')
 
