@@ -36,6 +36,10 @@ calibrationDirectory = undistortedImagesDirectory + '\\\calibration'
 
 globalAtHome = True
 EPIPOLAR_MATCHING = False
+RECONSTRUCT_FROM_DISK = False
+SAVE_RECONSTRUCTIONS = False
+SKIP_RANSAC = True
+RANSAC_RECONSTRUCTION = True
 
 
 def HomeComputer(home):
@@ -562,7 +566,6 @@ if __name__ == '__main__':
 
 
 
-        RECONSTRUCT_FROM_DISK = True
 
 
         if RECONSTRUCT_FROM_DISK:
@@ -799,7 +802,6 @@ if __name__ == '__main__':
 
             
 
-            SKIP_RANSAC = True
 
             if not SKIP_RANSAC:
                 for r in range( RANSAC_ITERATIONS ):
@@ -883,13 +885,7 @@ if __name__ == '__main__':
                 
 
                 
-                #standing stranger
-                bestInliers = 32
-                bestPerson = 1
-                bestImage = 3
-                initialPerson = 0 # personA
-                initialImage = 4
-
+                
                 
                 
                 # guy in dark blue
@@ -899,12 +895,6 @@ if __name__ == '__main__':
                 initialPerson = 5 # personA
                 initialImage = 3 #imgIDA
                 
-                # middle lady in black
-                bestInliers = 57
-                bestPerson = 0
-                bestImage = 11
-                initialPerson = 6 # personA
-                initialImage = 4 #imgIDA
 
                 # person in gray
                 bestInliers = 53
@@ -939,6 +929,21 @@ if __name__ == '__main__':
                 bestImage = 9
                 initialPerson = 3 # personA
                 initialImage = 4 #imgIDA
+
+                # middle lady in black
+                bestInliers = 57
+                bestPerson = 0
+                bestImage = 11
+                initialPerson = 6 # personA
+                initialImage = 4 #imgIDA
+
+                #standing stranger
+                bestInliers = 32
+                bestPerson = 1
+                bestImage = 3
+                initialPerson = 0 # personA
+                initialImage = 4
+
 
             print( 'bestInliers = ' + str( bestInliers ) )
             print( 'bestPerson = ' + str( bestPerson ) )
@@ -1064,39 +1069,65 @@ if __name__ == '__main__':
                 #imageIndicies = np.ones(numberOfCameras, dtype=bool)
                 
                 
+                if RANSAC_RECONSTRUCTION:
+                    for rr in range(500):
+                        # keyPointsInEachImage[i] # all the ith bodyparts
+                        pointImageIndices = np.random.choice(goodKeyPoints, 2, replace=False)
+                        pixelA = keyPointsInEachImage[i,pointImageIndices[0]]
+                        pixelB = keyPointsInEachImage[i,pointImageIndices[1]]
+                        X = triangulation( cameraProjs[pointImageIndices[0]], cameraProjs[pointImageIndices[1]], pixelA, pixelB )
 
-                for rr in range(500):
-                    # keyPointsInEachImage[i] # all the ith bodyparts
-                    pointImageIndices = np.random.choice(goodKeyPoints, 2, replace=False)
-                    pixelA = keyPointsInEachImage[i,pointImageIndices[0]]
-                    pixelB = keyPointsInEachImage[i,pointImageIndices[1]]
-                    X = triangulation( cameraProjs[pointImageIndices[0]], cameraProjs[pointImageIndices[1]], pixelA, pixelB )
-
-                    #imageIndicies[points[0]] = False
-                    #imageIndicies[points[1]] = False
-                    #imagesLeft = np.where()
-                    reprojectionError = 0
-                    for imageIndex in goodKeyPoints:
-                        if imageIndex == pointImageIndices[0] or imageIndex == pointImageIndices[1]:
-                            continue
-                        pixelI = keyPointsInEachImage[i,imageIndex]
-                        #if pixelI[2] < confidenceThreshold:
-                        #    continue
-                        pixelX = cameraProjs[imageIndex] @ X
-                        pixelX /= pixelX[2]
-                        diff = pixelX[:2] - pixelI[:2]
-                        squaredDist = diff @ diff
-                        reprojectionError += squaredDist
+                        #imageIndicies[points[0]] = False
+                        #imageIndicies[points[1]] = False
+                        #imagesLeft = np.where()
+                        reprojectionError = 0
+                        for imageIndex in goodKeyPoints:
+                            if imageIndex == pointImageIndices[0] or imageIndex == pointImageIndices[1]:
+                                continue
+                            pixelI = keyPointsInEachImage[i,imageIndex]
+                            #if pixelI[2] < confidenceThreshold:
+                            #    continue
+                            pixelX = cameraProjs[imageIndex] @ X
+                            pixelX /= pixelX[2]
+                            diff = pixelX[:2] - pixelI[:2]
+                            squaredDist = diff @ diff
+                            reprojectionError += squaredDist
                         
-                    if reprojectionError < lowestReprojectionError:
-                        bestA = pointImageIndices[0]
-                        bestB = pointImageIndices[1]
-                        lowestReprojectionError = reprojectionError
-                print('Best pair for bodypart [' + str(i) + '] is ('+ str(bestA) + ',' + str(bestB) + ') with a reprojection error of ' + str(reprojectionError))
-                #reconstructedPoints[i] = TriangulatePoints(cameraProjs, keyPointsInEachImage[i], confidenceThreshold)
-                reconstructedPoints[i] = triangulation( cameraProjs[bestA], cameraProjs[bestB], keyPointsInEachImage[i,bestA], keyPointsInEachImage[i,bestB] ) #TriangulatePoints(cameraProjs, keyPointsInEachImage[i], confidenceThreshold)
+                        if reprojectionError < lowestReprojectionError:
+                            bestA = pointImageIndices[0]
+                            bestB = pointImageIndices[1]
+                            lowestReprojectionError = reprojectionError
+                    print('Best pair for bodypart [' + str(i) + '] is ('+ str(bestA) + ',' + str(bestB) + ') with a reprojection error of ' + str(reprojectionError))
+                    #reconstructedPoints[i] = TriangulatePoints(cameraProjs, keyPointsInEachImage[i], confidenceThreshold)
+                    reconstructedPoints[i] = triangulation( cameraProjs[bestA], cameraProjs[bestB], keyPointsInEachImage[i,bestA], keyPointsInEachImage[i,bestB] ) #TriangulatePoints(cameraProjs, keyPointsInEachImage[i], confidenceThreshold)
+                else:
+                    for i in range(reconstructedPoints.shape[0]): # for each body part
+                        print('Reconstructing body part ' + str(i) + ' with confidence better than ' + str(confidenceThreshold) + '...')
+                        #while True:
+                        reconstructedPoints[i] = TriangulatePoints(cameraProjs, keyPointsInEachImage[i], confidenceThreshold)
+                    print('done reconstructing')
+                    #reconstructedPoints[i] = TriangulatePoints(cameraProjs, keyPointsInEachImage[i], confidenceThreshold)
 
             print('done reconstructing')
+
+            reprojectionError = 0
+            print('Calculating reprojection error...')
+            for r in range(reconstructedPoints.shape[0]):
+                X = reconstructedPoints[i]
+                if X[3] < 0:
+                    continue
+                for imageIndex in range(numberOfCameras):
+                    pixelI = keyPointsInEachImage[r,imageIndex]
+                    if pixelI[2] < confidenceThreshold:
+                        continue
+                    pixelX = cameraProjs[imageIndex] @ X
+                    pixelX /= pixelX[2]
+                    diff = pixelX[:2] - pixelI[:2]
+                    squaredDist = diff @ diff
+                    reprojectionError += math.sqrt(squaredDist)
+
+            print('Total reprojection error: ' + str(reprojectionError))
+
 
 
             for i, point in zip(range(reconstructedPoints.shape[0]),reconstructedPoints):
@@ -1143,10 +1174,10 @@ if __name__ == '__main__':
                 ax.plot3D((x0[0],x1[0]),(x0[2],x1[2]),(-x0[1],-x1[1]), 'gray')
 
 
-
-            print('saving matrix [ ' + 'person' + str(initialPerson) + '_frames_' + str(initialImage) + 'and' + str(bestImage) + '_set' + frameNo + '.npy ] before destroying...')
-            np.savetxt('person' + str(initialPerson) + '_frames_' + str(initialImage) + 'and' + str(bestImage) + '_set' + frameNo + '.npy', reconstructedPoints)
-            print('done saving!')
+            if SAVE_RECONSTRUCTIONS:
+                print('saving matrix [ ' + 'person' + str(initialPerson) + '_frames_' + str(initialImage) + 'and' + str(bestImage) + '_set' + frameNo + '.npy ] before destroying...')
+                np.savetxt('person' + str(initialPerson) + '_frames_' + str(initialImage) + 'and' + str(bestImage) + '_set' + frameNo + '.npy', reconstructedPoints)
+                print('done saving!')
 
 
             reconstructedPoints = reconstructedPoints[reconstructedPoints[:, 3] != -1]
@@ -1157,20 +1188,34 @@ if __name__ == '__main__':
             
 
         else:
+            print('EPIPOLAR METHOD')
             # Let's find and triangulate a person in another image given a person in the current image!
-            initialPerson = 0#personA
-            initialImage = 6#imgIDA
+            initialPerson = 6#personA
+            initialImage = 4#imgIDA
 
 
-            #keyPointsInEachImage = np.zeros((numberOfCameras, datums[initialImage].poseKeypoints.shape[1], 3)) #  bodyparts (25) x images (matches) x 3 points  # allows for indexing by x[i] means all pixels from the each image corresponding to bodypart i
-            keyPointsInEachImage = np.zeros((datums[initialImage].poseKeypoints.shape[1], numberOfCameras, 3)) #  bodyparts (25) x images (matches) x 3 points  # allows for indexing by x[i] means all pixels from the each image corresponding to bodypart i
-            keyPointsInEachImage[:,initialImage,:] = datums[initialImage].poseKeypoints[initialPerson]
-            matchThreshold = 8 # must have at least this many points correllated with the original person to work TODO: this is bad if the original person had less than 'matchThreshold' points... need some way to choose people without seeds
+            matchThreshold = 6 # must have at least this many points correllated with the original person to work TODO: this is bad if the original person had less than 'matchThreshold' points... need some way to choose people without seeds
             matchRatioThreshold = .6 # the percentage difference between the second best and first best must be less than this
         
             confidenceThreshold = .7 # points with less confidence than this are discarded from matching
             distThreshold = 20 # if it's within distThreshold pixels it's a good match
             triangulationConfidenceThreshold = .7 # points with less confidence than this are discarded from triangulation
+
+            color = (0,255,0)
+            for bodypartID in range( datums[initialImage].poseKeypoints.shape[1] ):
+                bodypartPixelA = np.array([datums[initialImage].poseKeypoints[initialPerson,bodypartID,0], datums[initialImage].poseKeypoints[initialPerson,bodypartID,1], 1])
+                if bodypartPixelA[2] > confidenceThreshold:
+                    cv2.circle(imagesToProcess[initialImage], (int(bodypartPixelA[0]),int(bodypartPixelA[1])),3,color,2)
+
+            cv2.namedWindow('Initial Image', cv2.WINDOW_NORMAL)
+            cv2.imshow('Initial Image',imagesToProcess[initialImage])
+            cv2.resizeWindow('Initial Image', imagesToProcess[initialImage].shape[1]//2, imagesToProcess[initialImage].shape[0]//2)
+            cv2.waitKey()
+
+            #keyPointsInEachImage = np.zeros((numberOfCameras, datums[initialImage].poseKeypoints.shape[1], 3)) #  bodyparts (25) x images (matches) x 3 points  # allows for indexing by x[i] means all pixels from the each image corresponding to bodypart i
+            keyPointsInEachImage = np.zeros((datums[initialImage].poseKeypoints.shape[1], numberOfCameras, 3)) #  bodyparts (25) x images (matches) x 3 points  # allows for indexing by x[i] means all pixels from the each image corresponding to bodypart i
+            keyPointsInEachImage[:,initialImage,:] = datums[initialImage].poseKeypoints[initialPerson]
+           
 
 
             for otherImage in range(numberOfCameras):
@@ -1235,6 +1280,9 @@ if __name__ == '__main__':
                 sortedMatchesPerPerson = matchesPerPerson[np.argsort(matchesPerPerson)]
                 matchRatio = sortedMatchesPerPerson[-2]/sortedMatchesPerPerson[-1]
                 tooSimilarMatches = matchRatio > matchRatioThreshold
+                
+                datumC = datums[otherImage].poseKeypoints[int(sortedMatchesPerPerson[-2])]
+
                 #if belowMatchThreshold
 
 
@@ -1245,9 +1293,18 @@ if __name__ == '__main__':
                     if belowMatchThreshold or tooSimilarMatches:
                         cv2.circle(imagesToProcess[otherImage], (int(pointB[0]),int(pointB[1])),4,(0,0,255),4)
                     elif  pointB[2] < confidenceThreshold:
-                        cv2.circle(imagesToProcess[otherImage], (int(pointB[0]),int(pointB[1])),4,(0,255,255),4)
+                        #cv2.circle(imagesToProcess[otherImage], (int(pointB[0]),int(pointB[1])),4,(0,255,255),4)
+                        print('')
                     else:
                         cv2.circle(imagesToProcess[otherImage], (int(pointB[0]),int(pointB[1])),4,(255,255,0),4)
+
+                if belowMatchThreshold or tooSimilarMatches:
+                    for i, pointC in zip(range(datumC.shape[0]), datumC):
+                        if  pointC[2] < confidenceThreshold:
+                            print('')
+                        else:
+                            cv2.circle(imagesToProcess[otherImage], (int(pointC[0]),int(pointC[1])),4,(0,0,255),4)
+
 
                 cv2.namedWindow('B', cv2.WINDOW_NORMAL)
                 cv2.imshow('B',imagesToProcess[otherImage])
