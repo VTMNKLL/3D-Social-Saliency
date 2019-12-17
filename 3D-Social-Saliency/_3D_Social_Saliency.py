@@ -22,7 +22,7 @@ undistortedImagesDirectory = 'E:\\AML\\Data\\boat_data\\boat_1fps_200s'
 imageSet0000 = undistortedImagesDirectory + '\\00012000'
 frameNo = '00012000'
 frameNo = '00017190'
-frameNumber = '\\'+frameNo
+frameNumber = '\\' + frameNo
 imagePrefix = '\\image\\image'
 numberofDigits = 7
 imageSuffix = '.jpg'
@@ -34,20 +34,13 @@ cameraExtrinsicsFileLocation = 'E:\\AML\\Data\\boat_data\\boat_1fps_200s\\calibr
 
 calibrationDirectory = undistortedImagesDirectory + '\\\calibration'
 
-globalAtHome = True
-EPIPOLAR_MATCHING = False
+globalAtHome = False
+EPIPOLAR_MATCHING = False # False means use the RANSAC MATCHING method
 RECONSTRUCT_FROM_DISK = False
 SAVE_RECONSTRUCTIONS = False
 SKIP_RANSAC = True
-RANSAC_RECONSTRUCTION = True
+RANSAC_POSE_RECONSTRUCTION = False
 
-
-def HomeComputer(home):
-    if (home):
-        undistortedImagesDirectory = 'C:\\Users\\Zach\\source\\repos\\ComputerVision\\3D Human Reconstruction'
-        cameraIntrinsicsFileLocation = undistortedImagesDirectory + '\\intrinsic_z.txt'
-        cameraExtrinsicsFileLocation = undistortedImagesDirectory + '\\camera_z.txt'
-    return
 
 def axisEqual3D(ax):
     extents = np.array([getattr(ax, 'get_{}lim'.format(dim))() for dim in 'xyz'])
@@ -773,16 +766,7 @@ if __name__ == '__main__':
             initialPerson = 4 # personA
             initialImage = 6 #imgIDA
 
-            color = (0,255,0)
-            for bodypartID in range( datums[initialImage].poseKeypoints.shape[1] ):
-                bodypartPixelA = np.array([datums[initialImage].poseKeypoints[initialPerson,bodypartID,0], datums[initialImage].poseKeypoints[initialPerson,bodypartID,1], 1])
-                if bodypartPixelA[2] > confidenceThreshold:
-                    cv2.circle(imagesToProcess[initialImage], (int(bodypartPixelA[0]),int(bodypartPixelA[1])),3,color,2)
-
-            cv2.namedWindow('Initial Image', cv2.WINDOW_NORMAL)
-            cv2.imshow('Initial Image',imagesToProcess[initialImage])
-            cv2.resizeWindow('Initial Image', imagesToProcess[initialImage].shape[1]//2, imagesToProcess[initialImage].shape[0]//2)
-            cv2.waitKey()
+            
 
             candidatesInImages = [None] * numberOfCameras # holds logical arrays for each camera where a True/1 represents a person is still a candidate and False/0 means they have been eliminated (either associating it with another person or by removing them entirely)
             for i in range(numberOfCameras):
@@ -804,6 +788,18 @@ if __name__ == '__main__':
 
 
             if not SKIP_RANSAC:
+                color = (0,255,0)
+                for bodypartID in range( datums[initialImage].poseKeypoints.shape[1] ):
+                    bodypartPixelA = np.array([datums[initialImage].poseKeypoints[initialPerson,bodypartID,0], datums[initialImage].poseKeypoints[initialPerson,bodypartID,1], 1])
+                    if bodypartPixelA[2] > confidenceThreshold:
+                        cv2.circle(imagesToProcess[initialImage], (int(bodypartPixelA[0]),int(bodypartPixelA[1])),3,color,2)
+
+                cv2.namedWindow('Initial Image', cv2.WINDOW_NORMAL)
+                cv2.imshow('Initial Image',imagesToProcess[initialImage])
+                cv2.resizeWindow('Initial Image', imagesToProcess[initialImage].shape[1]//2, imagesToProcess[initialImage].shape[0]//2)
+                cv2.waitKey()
+
+                print("RUNNING TRUE RANSAC")
                 for r in range( RANSAC_ITERATIONS ):
                     inliers = 0
                     randomImage = int(chooseNUnique( candidateImagesIdx, 1 )[0])
@@ -884,17 +880,20 @@ if __name__ == '__main__':
 
                 
 
-                
-                
-                
-                
-                # guy in dark blue
+
+                # middle lady in black
+                bestInliers = 57
+                bestPerson = 0
+                bestImage = 11
+                initialPerson = 6 # personA
+                initialImage = 4 #imgIDA
+
+                 # guy in dark blue
                 bestInliers = 44
                 bestPerson = 0
                 bestImage = 2
                 initialPerson = 5 # personA
                 initialImage = 3 #imgIDA
-                
 
                 # person in gray
                 bestInliers = 53
@@ -909,13 +908,13 @@ if __name__ == '__main__':
                 initialPerson = 1 # personA
                 initialImage = 6 #imgIDA
 
-                #vince
+                # vince
                 bestInliers = 52
                 bestPerson = 1
                 bestImage = 4
                 initialPerson = 0 # personA
                 initialImage = 6 #imgIDA
-
+                
                 # lady at boat end
                 bestInliers = 32
                 bestPerson = 5
@@ -929,21 +928,24 @@ if __name__ == '__main__':
                 bestImage = 9
                 initialPerson = 3 # personA
                 initialImage = 4 #imgIDA
-
-                # middle lady in black
-                bestInliers = 57
-                bestPerson = 0
-                bestImage = 11
-                initialPerson = 6 # personA
-                initialImage = 4 #imgIDA
-
-                #standing stranger
+                
+                # standing stranger
                 bestInliers = 32
                 bestPerson = 1
                 bestImage = 3
                 initialPerson = 0 # personA
                 initialImage = 4
 
+                color = (0,255,0)
+                for bodypartID in range( datums[initialImage].poseKeypoints.shape[1] ):
+                    bodypartPixelA = np.array([datums[initialImage].poseKeypoints[initialPerson,bodypartID,0], datums[initialImage].poseKeypoints[initialPerson,bodypartID,1], 1])
+                    if bodypartPixelA[2] > confidenceThreshold:
+                        cv2.circle(imagesToProcess[initialImage], (int(bodypartPixelA[0]),int(bodypartPixelA[1])),3,color,2)
+
+                cv2.namedWindow('Initial Image', cv2.WINDOW_NORMAL)
+                cv2.imshow('Initial Image',imagesToProcess[initialImage])
+                cv2.resizeWindow('Initial Image', imagesToProcess[initialImage].shape[1]//2, imagesToProcess[initialImage].shape[0]//2)
+                cv2.waitKey()
 
             print( 'bestInliers = ' + str( bestInliers ) )
             print( 'bestPerson = ' + str( bestPerson ) )
@@ -993,7 +995,7 @@ if __name__ == '__main__':
                     pixelX /= pixelX[2]
 
                     color = (0,255,255)
-                    cv2.circle(imagesToProcess[otherImageIdx], (int(pixelX[0]),int(pixelX[1])),5,color,2)
+                    cv2.circle(imagesToProcess[otherImageIdx], (int(pixelX[0]),int(pixelX[1])),3,color,2)
 
                     for personIdx in range(datums[otherImageIdx].poseKeypoints.shape[0]): # for each person in otherimage
 
@@ -1037,6 +1039,12 @@ if __name__ == '__main__':
             reconstructedPoints = np.zeros((datums[initialImage].poseKeypoints.shape[1],4))
             print(reconstructedPoints.shape)
             #relaxedConfidenceThreshold = .6
+
+
+            # ************************************************************
+            # BODY PART TRIANGULATION
+            # ************************************************************
+
             for i in range(reconstructedPoints.shape[0]): # for each body part
                 print('Reconstructing body part ' + str(i) + ' with confidence better than ' + str(confidenceThreshold) + '...')
                 #while True:
@@ -1066,10 +1074,10 @@ if __name__ == '__main__':
                 bestB = -1
                 lowestReprojectionError = np.inf
                 
-                #imageIndicies = np.ones(numberOfCameras, dtype=bool)
+                # imageIndicies = np.ones(numberOfCameras, dtype=bool)
                 
                 
-                if RANSAC_RECONSTRUCTION:
+                if RANSAC_POSE_RECONSTRUCTION:
                     for rr in range(500):
                         # keyPointsInEachImage[i] # all the ith bodyparts
                         pointImageIndices = np.random.choice(goodKeyPoints, 2, replace=False)
@@ -1097,7 +1105,7 @@ if __name__ == '__main__':
                             bestA = pointImageIndices[0]
                             bestB = pointImageIndices[1]
                             lowestReprojectionError = reprojectionError
-                    print('Best pair for bodypart [' + str(i) + '] is ('+ str(bestA) + ',' + str(bestB) + ') with a reprojection error of ' + str(reprojectionError))
+                    print('Best pair for bodypart [' + str(i) + '] is ('+ str(bestA) + ',' + str(bestB) + ') with a lowest reprojection error of ' + str(lowestReprojectionError))
                     #reconstructedPoints[i] = TriangulatePoints(cameraProjs, keyPointsInEachImage[i], confidenceThreshold)
                     reconstructedPoints[i] = triangulation( cameraProjs[bestA], cameraProjs[bestB], keyPointsInEachImage[i,bestA], keyPointsInEachImage[i,bestB] ) #TriangulatePoints(cameraProjs, keyPointsInEachImage[i], confidenceThreshold)
                 else:
@@ -1110,11 +1118,27 @@ if __name__ == '__main__':
 
             print('done reconstructing')
 
+
+
+
+            # ************************************************************
+            # COMPUTE REPROJECTION ERROR
+            # ************************************************************
+
+            #goodReconstructions = np.where( reconstructedPoints[i,3] > 0 )[0] # get the indices we care about
+            ## for each body part
+            #for i in goodReconstructions:
+            #     goodKeyPoints = np.where( keyPointsInEachImage[i,:,2] > confidenceThreshold )[0] # only the good keypoints for this body part
+
+
+
             reprojectionError = 0
+            reprojectionCount = 0
             print('Calculating reprojection error...')
             for r in range(reconstructedPoints.shape[0]):
-                X = reconstructedPoints[i]
+                X = reconstructedPoints[r]
                 if X[3] < 0:
+                    print('BodyPart', r, 'was not reconstructed')
                     continue
                 for imageIndex in range(numberOfCameras):
                     pixelI = keyPointsInEachImage[r,imageIndex]
@@ -1125,8 +1149,12 @@ if __name__ == '__main__':
                     diff = pixelX[:2] - pixelI[:2]
                     squaredDist = diff @ diff
                     reprojectionError += math.sqrt(squaredDist)
+                    reprojectionCount += 1
 
-            print('Total reprojection error: ' + str(reprojectionError))
+            averageReprojectionError = reprojectionError
+            if reprojectionCount > 0:
+                averageReprojectionError /= reprojectionCount
+            print('Average reprojection error: ' + str(averageReprojectionError))
 
 
 
