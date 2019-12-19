@@ -34,9 +34,9 @@ cameraExtrinsicsFileLocation = 'E:\\AML\\Data\\boat_data\\boat_1fps_200s\\calibr
 
 calibrationDirectory = undistortedImagesDirectory + '\\\calibration'
 
-globalAtHome = False
+globalAtHome = True
 EPIPOLAR_MATCHING = False # False means use the RANSAC MATCHING method
-RECONSTRUCT_FROM_DISK = False
+RECONSTRUCT_FROM_DISK = True
 SAVE_RECONSTRUCTIONS = False
 SKIP_RANSAC = True
 RANSAC_POSE_RECONSTRUCTION = False
@@ -703,10 +703,10 @@ if __name__ == '__main__':
                     print(str(handIntensitiesMean[i,0]) + ', ' + str(handIntensitiesMean[i,1]))
 
 
-                VISUALIZE_GAZE = True
+                VISUALIZE_GAZE = False
                 VISUALIZE_MEAN_HANDS = False
-                VISUALIZE_GAZE_HANDS = True
-                RAINBOW_COLORS = False
+                VISUALIZE_GAZE_HANDS = False #True
+                RAINBOW_COLORS = True
                 skeleton_colors = 'black'
                 if RAINBOW_COLORS:
                     skeleton_colors = None
@@ -723,26 +723,30 @@ if __name__ == '__main__':
 
                     if VISUALIZE_GAZE:
                         displacement = skeleton[0] + viewDirections[i] * 1.5 / np.linalg.norm(viewDirections[i])
-                        ax.plot3D((skeleton[0,0],displacement[0]),(skeleton[0,2],displacement[2]),(-skeleton[0,1],-displacement[1]), 'blue')
+                        ax.plot3D((skeleton[0,0],displacement[0]),(skeleton[0,2],displacement[2]),(-skeleton[0,1],-displacement[1]), 'cyan')
 
                     if VISUALIZE_MEAN_HANDS:
+                        colorL = (handIntensitiesMean[i,0], 0, 1- handIntensitiesMean[i,0],1)
+                        colorR = (handIntensitiesMean[i,1], 0, 1- handIntensitiesMean[i,1],1)
                         if skeleton[7,3] > 0:
-                            ax.scatter(skeleton[7,0],skeleton[7,2],-skeleton[7,1], s = 100, c='red', alpha = handIntensitiesMean[i,0])
+                            ax.scatter(skeleton[7,0],skeleton[7,2],-skeleton[7,1], s = 100, c=colorL)#'red', alpha = handIntensitiesMean[i,0])
                         if skeleton[4,3] > 0:
-                            ax.scatter(skeleton[4,0],skeleton[4,2],-skeleton[4,1], s = 100, c='red', alpha = handIntensitiesMean[i,1])
+                            ax.scatter(skeleton[4,0],skeleton[4,2],-skeleton[4,1], s = 100, c=colorR)#'red', alpha = handIntensitiesMean[i,1])
 
                     if VISUALIZE_GAZE_HANDS:
+                        colorL = (handIntensitiesGaze[i,0], 0, 1- handIntensitiesGaze[i,0],1)
+                        colorR = (handIntensitiesGaze[i,1], 0, 1- handIntensitiesGaze[i,1],1)
                         if skeleton[7,3] > 0:
-                            ax.scatter(skeleton[7,0],skeleton[7,2],-skeleton[7,1], s = 100, c='red', alpha = handIntensitiesGaze[i,0])
+                            ax.scatter(skeleton[7,0],skeleton[7,2],-skeleton[7,1], s = 100, c=colorL)#, alpha = handIntensitiesGaze[i,0])
                         if skeleton[4,3] > 0:
-                            ax.scatter(skeleton[4,0],skeleton[4,2],-skeleton[4,1], s = 100, c='red', alpha = handIntensitiesGaze[i,1])
+                            ax.scatter(skeleton[4,0],skeleton[4,2],-skeleton[4,1], s = 100, c=colorR)#, alpha = handIntensitiesGaze[i,1])
 
                     skeleton = skeleton[skeleton[:, 3] != -1]
                     ax.scatter(skeleton[:,0],skeleton[:,2],-skeleton[:,1], c= skeleton_colors, alpha = 1) #cmap= 'Greens')
 
                     
                 if VISUALIZE_MEAN_HANDS:
-                    ax.scatter(mean[0],mean[2],-mean[1], s = 100, c='blue', marker='^')
+                    ax.scatter(mean[0],mean[2],-mean[1], s = 100, c='cyan', marker='^')
 
                 axisEqual3D(ax)
                 plt.show()
@@ -1216,13 +1220,89 @@ if __name__ == '__main__':
             
 
         else:
+
+            
+
+
+
+
+
             print('EPIPOLAR METHOD')
             # Let's find and triangulate a person in another image given a person in the current image!
             initialPerson = 6#personA
             initialImage = 4#imgIDA
+            
+                # guy in dark blue
+            #bestInliers = 44
+            #bestPerson = 0
+            #bestImage = 2
+            initialPerson = 5 # personA
+            initialImage = 3 #imgIDA
+
+            # person in gray
+            #bestInliers = 53
+            #bestPerson = 3
+            #bestImage = 2
+            initialPerson = 5 # personA
+            initialImage = 4 #imgIDA
+            # better
+            #bestInliers = 59
+            #bestPerson = 1
+            #bestImage = 1
+            initialPerson = 1 # personA
+            initialImage = 6 #imgIDA
 
 
-            matchThreshold = 6 # must have at least this many points correllated with the original person to work TODO: this is bad if the original person had less than 'matchThreshold' points... need some way to choose people without seeds
+            # vince
+            #bestInliers = 52
+            #bestPerson = 1
+            #bestImage = 4
+            initialPerson = 0 # personA
+            initialImage = 6 #imgIDA
+            
+            # lady at boat end
+            #bestInliers = 32
+            #bestPerson = 5
+            #bestImage = 7
+            initialPerson = 4 # personA
+            initialImage = 6 #imgIDA
+
+            # guy in blue
+            #bestInliers = 56
+            #bestPerson = 7
+            #bestImage = 9
+            initialPerson = 3 # personA
+            initialImage = 4 #imgIDA
+
+            # standing stranger
+            #bestInliers = 32
+            #bestPerson = 1
+            #bestImage = 3
+            initialPerson = 0 # personA
+            initialImage = 4
+
+
+            # middle lady in black
+            #bestInliers = 57
+            #bestPerson = 0
+            #bestImage = 11
+            initialPerson = 6 # personA
+            initialImage = 4 #imgIDA
+
+            
+
+
+                
+
+                
+
+
+
+
+
+
+
+            matchThreshold = 2 # must have at least this many points correllated with the original person to work TODO: this is bad if the original person had less than 'matchThreshold' points... need some way to choose people without seeds
             matchRatioThreshold = .6 # the percentage difference between the second best and first best must be less than this
         
             confidenceThreshold = .7 # points with less confidence than this are discarded from matching
@@ -1308,6 +1388,8 @@ if __name__ == '__main__':
                 sortedMatchesPerPerson = matchesPerPerson[np.argsort(matchesPerPerson)]
                 matchRatio = sortedMatchesPerPerson[-2]/sortedMatchesPerPerson[-1]
                 tooSimilarMatches = matchRatio > matchRatioThreshold
+                numberOfMatchedPeople = np.where(matchesPerPerson > matchThreshold)[0]
+                print('There were', len(numberOfMatchedPeople), 'people matched in this image')
                 
                 datumC = datums[otherImage].poseKeypoints[int(sortedMatchesPerPerson[-2])]
 
