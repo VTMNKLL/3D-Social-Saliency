@@ -36,10 +36,13 @@ calibrationDirectory = undistortedImagesDirectory + '\\\calibration'
 
 globalAtHome = True
 EPIPOLAR_MATCHING = False # False means use the RANSAC MATCHING method
-RECONSTRUCT_FROM_DISK = True
+RECONSTRUCT_FROM_DISK = False #True
 SAVE_RECONSTRUCTIONS = False
-SKIP_RANSAC = True
-RANSAC_POSE_RECONSTRUCTION = False
+SKIP_RANSAC = False#True
+RANSAC_POSE_RECONSTRUCTION = True
+
+epipolarDistThreshold = 20
+epipolarMatchThreshold = 3
 
 
 def axisEqual3D(ax):
@@ -193,7 +196,7 @@ def DistanceFromLine (line, point):
     homogPoint = np.array([point[0], point[1], 1])
     proj = np.dot(line, homogPoint)
     lineNormal = np.linalg.norm(np.array([line[0],line[1]]))
-    return proj / lineNormal
+    return abs(proj / lineNormal)
 
 def DistanceBetweenTwoPoints (ptA, ptB) :
     displacement = ptB - ptA
@@ -767,8 +770,8 @@ if __name__ == '__main__':
             matchThreshold = 4 #6
 
 
-            initialPerson = 4 # personA
-            initialImage = 6 #imgIDA
+            initialPerson = 0#4 # personA
+            initialImage = 4#6 #imgIDA
 
             
 
@@ -788,9 +791,81 @@ if __name__ == '__main__':
             candidateImages[initialImage] = False # don't choose the original image for triangulation
             candidateImagesIdx = np.where( candidateImages == True )[0] # index buffer
 
+            ##############################
+            ###### EPIPOLAR CULLING ######
+            ##############################
+
+            # For all valid images,
+            #   for all people in image,
+            #       for all body parts
+            #           if confident, check distance to epipolar line
+            #           if distance is less than threshold, increment counter
+            #       if counter < threshold, do not consider person
+            for imIdx in candidateImagesIdx:
+                for personIdx in range(len(candidatesInImages[imIdx])):
+                    count = 0
+                    for bodypartIdx in range(datums[imIdx].poseKeypoints[personIdx].shape[0]):
+                        #print('Image:',imIdx,', Person:', personIdx,', Bodypart:',bodypartIdx)
+
+                        pt1 = np.array([datums[initialImage].poseKeypoints[initialPerson,bodypartIdx,0], datums[initialImage].poseKeypoints[initialPerson,bodypartIdx,1], 1])
+                        confidence1 = datums[initialImage].poseKeypoints[initialPerson,bodypartIdx,2]
+
+                        pt2 = np.array([datums[imIdx].poseKeypoints[personIdx,bodypartIdx,0], datums[imIdx].poseKeypoints[personIdx,bodypartIdx,1], 1])
+                        confidence2 = datums[imIdx].poseKeypoints[personIdx,bodypartIdx,2]
+                        if confidence1 < confidenceThreshold or confidence2 < confidenceThreshold:
+                            continue
+                        
+                        
+                        
+                        fundMatrix = GetFundamentalMatrix(cameraIntrinsics[initialImage],cameraExtrinsics[initialImage][:3,:3],cameraExtrinsics[initialImage][:3,3], cameraFromWorld[initialImage], cameraIntrinsics[imIdx],cameraExtrinsics[imIdx][:3,:3],cameraExtrinsics[imIdx][:3,3], cameraFromWorld[imIdx])
+                        fundTrans = np.transpose(fundMatrix)
+                        lineInOther = fundTrans @ pt1
+                        dist = DistanceFromLine(lineInOther,pt2)
+
+
+                        color = (0,255,0)
+                        cv2.circle(imagesToProcess[initialImage], (int(pt1[0]),int(pt1[1])),8,color,2)
+                        #cv2.namedWindow('Initial Image', cv2.WINDOW_NORMAL)
+                        #cv2.imshow('Initial Image',imagesToProcess[initialImage])
+                        #cv2.resizeWindow('Initial Image', imagesToProcess[initialImage].shape[1]//2, imagesToProcess[initialImage].shape[0]//2)
+                        
+                        cv2.circle(imagesToProcess[imIdx], (int(pt2[0]),int(pt2[1])),8,color,2)
+                        DrawLineOnImage( imagesToProcess[imIdx], lineInOther)
+                        #cv2.namedWindow('Other Image', cv2.WINDOW_NORMAL)
+                        #cv2.imshow('Other Image',imagesToProcess[imIdx])
+                        #cv2.resizeWindow('Other Image', imagesToProcess[imIdx].shape[1]//2, imagesToProcess[imIdx].shape[0]//2)
+                        #cv2.waitKey()
+
+                        # Check if close to epipolar line
+                        if dist <= epipolarDistThreshold:
+                            count += 1
+
+                    # 
+                    candidatesInImages[imIdx][personIdx] = count >= epipolarMatchThreshold
+
+                    #if count < epipolarMatchThreshold:
+                    #    cv2.namedWindow('Initial Image', cv2.WINDOW_NORMAL)
+                    #    cv2.imshow('Initial Image',imagesToProcess[initialImage])
+                    #    cv2.resizeWindow('Initial Image', imagesToProcess[initialImage].shape[1]//2, imagesToProcess[initialImage].shape[0]//2)
+                        
+                    #    cv2.namedWindow('Other Image', cv2.WINDOW_NORMAL)
+                    #    cv2.imshow('Other Image',imagesToProcess[imIdx])
+                    #    cv2.resizeWindow('Other Image', imagesToProcess[imIdx].shape[1]//2, imagesToProcess[imIdx].shape[0]//2)
+                    #    cv2.waitKey()
+
+
+
+
+
+
+
+
+
             
 
-
+            ####################################
+            #### FIND MATCHING PERSON #####
+            ####################################
             if not SKIP_RANSAC:
                 color = (0,255,0)
                 for bodypartID in range( datums[initialImage].poseKeypoints.shape[1] ):
@@ -1001,7 +1076,7 @@ if __name__ == '__main__':
                     color = (0,255,255)
                     cv2.circle(imagesToProcess[otherImageIdx], (int(pixelX[0]),int(pixelX[1])),3,color,2)
 
-                    for personIdx in range(datums[otherImageIdx].poseKeypoints.shape[0]): # for each person in otherimage
+                    for personIdx in range(datums[otherImageIdx].poseKeypoints.shape[0]): # for each person in otherimage # MAKE THIS WORK WITH EPIPOLAR CULLING TOO
 
                         
                         otherPix = datums[otherImageIdx].poseKeypoints[personIdx,bodypartID]
@@ -1307,6 +1382,8 @@ if __name__ == '__main__':
         
             confidenceThreshold = .7 # points with less confidence than this are discarded from matching
             distThreshold = 20 # if it's within distThreshold pixels it's a good match
+            epipolarDistThreshold = 20
+            epipolarMatchThreshold = 3
             triangulationConfidenceThreshold = .7 # points with less confidence than this are discarded from triangulation
 
             color = (0,255,0)
